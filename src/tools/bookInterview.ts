@@ -4,6 +4,7 @@ import { applicants } from '../data/applicants.js';
 import { SLOTS, bookings } from '../data/slots.js';
 
 const openSlots = () => SLOTS.filter((s) => !bookings.has(s));
+const currentSlotOf = (id: string) => SLOTS.find((s) => bookings.get(s) === id);
 
 export const bookInterview = tool({
   name: 'book_interview',
@@ -15,9 +16,15 @@ export const bookInterview = tool({
   execute: async ({ applicantId, slot }) => {
     const applicant = applicants.find((a) => a.id === applicantId.trim());
 
+    const currentSlot = applicant && currentSlotOf(applicant.id);
+
     let result;
     if (!applicant) {
       result = { booked: false, reason: 'unknown applicant' };
+    } else if (applicant.stage === 'rejected') {
+      result = { booked: false, reason: 'applicant rejected' };
+    } else if (currentSlot) {
+      result = { booked: false, reason: 'already booked', currentSlot };
     } else if (bookings.has(slot)) {
       result = { booked: false, reason: 'slot taken', openSlots: openSlots() };
     } else {
