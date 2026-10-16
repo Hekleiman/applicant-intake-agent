@@ -1,5 +1,6 @@
 import { createInterface } from 'node:readline';
-import { MemorySession, run } from '@openai/agents';
+import { InputGuardrailTripwireTriggered, MemorySession, run } from '@openai/agents';
+import { takeRequestCount } from './lib/requestCounter.js';
 import { startingAgent } from './agents/index.js';
 
 const interactive = process.stdin.isTTY === true;
@@ -44,8 +45,19 @@ for await (const raw of rl) {
       `[usage] requests=${usage.requests} input=${usage.inputTokens} output=${usage.outputTokens} total=${usage.totalTokens}`,
     );
   } catch (error) {
-    console.error(`[error] ${error instanceof Error ? error.message : String(error)}`);
+    if (error instanceof InputGuardrailTripwireTriggered) {
+      const reason = error.result.output.outputInfo?.reason ?? 'unknown';
+      console.log(
+        "Agent: Sorry, I can't process messages containing sensitive ID numbers or very long text. Please rephrase.",
+      );
+      console.log(`[guardrail] blocked (${reason})`);
+    } else {
+      console.error(`[error] ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
+
+  console.log(`[http] model requests this turn=${takeRequestCount()}`);
+  console.log(`[session] items=${(await session.getItems()).length}`);
   prompt();
 }
 
