@@ -222,6 +222,7 @@
 
   // gpt-5.6-luna pricing in US dollars per million tokens.
   var INPUT_PER_M = 0.20;
+  var CACHED_INPUT_PER_M = 0.02;
   var OUTPUT_PER_M = 1.20;
   var STEP_DELAY_MS = 1100;
 
@@ -426,12 +427,18 @@
   }
 
   function scenarioCost(events) {
-    var input = 0, output = 0;
+    var input = 0, cached = 0, output = 0;
     events.forEach(function (e) {
-      if (e.type === 'turn_usage') { input += e.data.inputTokens; output += e.data.outputTokens; }
+      if (e.type === 'turn_usage') {
+        input += e.data.inputTokens;
+        cached += e.data.cachedInputTokens || 0;
+        output += e.data.outputTokens;
+      }
     });
-    var dollars = input / 1e6 * INPUT_PER_M + output / 1e6 * OUTPUT_PER_M;
-    return { input: input, output: output, cents: dollars * 100 };
+    // inputTokens includes the cached ones; only the rest is billed at the full input price.
+    var dollars = (input - cached) / 1e6 * INPUT_PER_M + cached / 1e6 * CACHED_INPUT_PER_M +
+      output / 1e6 * OUTPUT_PER_M;
+    return { input: input, cached: cached, output: output, cents: dollars * 100 };
   }
 
   // ---------- rendering ----------
@@ -620,14 +627,15 @@
       var li = el('li');
       if (data[s.id]) {
         var c = scenarioCost(data[s.id].events);
-        li.textContent = s.tab + ': ' + c.cents.toFixed(3) + ' cents (' +
-          c.input.toLocaleString('en-US') + ' input and ' + c.output.toLocaleString('en-US') + ' output tokens)';
+        li.textContent = s.tab + ': about ' + c.cents.toFixed(2) + ' cents (' +
+          c.input.toLocaleString('en-US') + ' input tokens, ' + c.cached.toLocaleString('en-US') +
+          ' of them cached, and ' + c.output.toLocaleString('en-US') + ' output tokens)';
       } else {
         li.textContent = s.tab + ': not available';
       }
       costsEl.appendChild(li);
     });
-    costsEl.appendChild(el('li', '', 'Priced at $0.20 per million input tokens and $1.20 per million output tokens (gpt-5.6-luna).'));
+    costsEl.appendChild(el('li', '', 'Priced at $0.20 per million uncached input tokens, $0.02 per million cached input tokens and $1.20 per million output tokens (gpt-5.6-luna).'));
     var fromHash = location.hash.replace('#', '');
     select(fromHash || SCENARIOS[0].id);
     window.addEventListener('hashchange', function () {

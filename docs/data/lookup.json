@@ -1,19 +1,19 @@
 {
   "scenario": "lookup",
-  "recordedAt": "2026-10-16T21:34:41.274Z",
+  "recordedAt": "2026-10-16T22:18:50.000Z",
   "events": [
     {
       "type": "user_message",
-      "timestamp": 6,
+      "timestamp": 9,
       "data": {
         "text": "Where is Maria Lopez in the hiring process?"
       }
     },
     {
       "type": "trace",
-      "timestamp": 7,
+      "timestamp": 9,
       "data": {
-        "traceId": "trace_\u0034ed\u0034c\u0035f\u0039\u0039c\u0031\u0039\u0034e\u0030abda\u0033cd\u0030fc\u0038\u0035a\u0036\u0030d\u0034"
+        "traceId": "trace_d06a607e8cef4e008d3f6913db10d207"
       }
     },
     {
@@ -25,7 +25,7 @@
     },
     {
       "type": "tool_call",
-      "timestamp": 2357,
+      "timestamp": 3653,
       "data": {
         "agent": "Intake",
         "tool": "lookup_applicant",
@@ -43,50 +43,51 @@
             "notes": "Strong calendar management background. Phone screen went well."
           }
         },
-        "durationMs": 0
+        "durationMs": 1
       }
     },
     {
       "type": "agent_reply",
-      "timestamp": 3598,
+      "timestamp": 5089,
       "data": {
         "agent": "Intake",
-        "text": "Maria Lopez is currently in the **phone screen** stage for the Executive Assistant role."
+        "text": "Maria Lopez is currently in the **phone screen** stage."
       }
     },
     {
       "type": "turn_usage",
-      "timestamp": 3598,
+      "timestamp": 5089,
       "data": {
         "requests": 2,
         "inputTokens": 964,
-        "outputTokens": 41
+        "cachedInputTokens": 0,
+        "outputTokens": 36
       }
     },
     {
       "type": "user_message",
-      "timestamp": 3598,
+      "timestamp": 5089,
       "data": {
         "text": "What stage is Sam in?"
       }
     },
     {
       "type": "trace",
-      "timestamp": 3598,
+      "timestamp": 5089,
       "data": {
-        "traceId": "trace_c\u0034\u0032fd\u0030fabeb\u0032\u0034\u0035d\u0039\u0038\u0030\u0034\u0036baad\u0030\u0036a\u0031\u0030\u0032\u0039\u0032"
+        "traceId": "trace_3385191359c1460492700d9639942905"
       }
     },
     {
       "type": "guardrail",
-      "timestamp": 3600,
+      "timestamp": 5090,
       "data": {
         "result": "pass"
       }
     },
     {
       "type": "tool_call",
-      "timestamp": 4698,
+      "timestamp": 6618,
       "data": {
         "agent": "Intake",
         "tool": "lookup_applicant",
@@ -105,7 +106,7 @@
     },
     {
       "type": "agent_reply",
-      "timestamp": 7420,
+      "timestamp": 7905,
       "data": {
         "agent": "Intake",
         "text": "Which Sam do you mean: **Sam Rivera** or **Sam Chen**?"
@@ -113,49 +114,51 @@
     },
     {
       "type": "turn_usage",
-      "timestamp": 7420,
+      "timestamp": 7905,
       "data": {
         "requests": 2,
-        "inputTokens": 1162,
+        "inputTokens": 1152,
+        "cachedInputTokens": 0,
         "outputTokens": 39
       }
     },
     {
       "type": "user_message",
-      "timestamp": 7421,
+      "timestamp": 7905,
       "data": {
         "text": "Write me a poem about the ocean"
       }
     },
     {
       "type": "trace",
-      "timestamp": 7421,
+      "timestamp": 7905,
       "data": {
-        "traceId": "trace_\u0033\u0031e\u0031\u0036\u0031\u0031\u0032\u0034e\u0037\u0036\u0034\u0035\u0038\u0039\u0038ac\u0035\u0032\u0037fd\u0036\u0032\u0039\u0037e\u0036ea"
+        "traceId": "trace_4ee6a38a8e38403590002766e78c2c71"
       }
     },
     {
       "type": "guardrail",
-      "timestamp": 7422,
+      "timestamp": 7905,
       "data": {
         "result": "pass"
       }
     },
     {
       "type": "agent_reply",
-      "timestamp": 9170,
+      "timestamp": 9431,
       "data": {
         "agent": "Intake",
-        "text": "I’m here to help with recruiting questions and applicant management."
+        "text": "The ocean hums beneath the moon,  \nSilver waves in quiet flight;  \nTides that pull the world along,  \nDark and endless, deep with light."
       }
     },
     {
       "type": "turn_usage",
-      "timestamp": 9170,
+      "timestamp": 9431,
       "data": {
         "requests": 1,
-        "inputTokens": 637,
-        "outputTokens": 16
+        "inputTokens": 632,
+        "cachedInputTokens": 0,
+        "outputTokens": 37
       }
     }
   ]

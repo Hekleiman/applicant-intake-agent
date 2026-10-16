@@ -1,31 +1,31 @@
 {
   "scenario": "approval",
-  "recordedAt": "2026-10-16T21:38:50.172Z",
+  "recordedAt": "2026-10-16T22:18:49.999Z",
   "events": [
     {
       "type": "user_message",
-      "timestamp": 6,
+      "timestamp": 11,
       "data": {
         "text": "Reject Sam Rivera, they accepted another offer"
       }
     },
     {
       "type": "trace",
-      "timestamp": 7,
+      "timestamp": 12,
       "data": {
-        "traceId": "trace_b\u0035\u0035\u0033e\u0037\u0031\u0039\u0035\u0038e\u0034\u0034a\u0039ab\u0030f\u0039\u0032d\u0030\u0034a\u0031\u0034\u0033edb\u0030"
+        "traceId": "trace_a304cf5a07564210b76c5bce079e58fa"
       }
     },
     {
       "type": "guardrail",
-      "timestamp": 10,
+      "timestamp": 12,
       "data": {
         "result": "pass"
       }
     },
     {
       "type": "tool_call",
-      "timestamp": 1531,
+      "timestamp": 2236,
       "data": {
         "agent": "Intake",
         "tool": "lookup_applicant",
@@ -43,12 +43,12 @@
             "notes": "Offer extended; awaiting response."
           }
         },
-        "durationMs": 0
+        "durationMs": 1
       }
     },
     {
       "type": "approval_requested",
-      "timestamp": 2713,
+      "timestamp": 3822,
       "data": {
         "agent": "Intake",
         "tool": "reject_applicant",
@@ -60,14 +60,14 @@
     },
     {
       "type": "approval_decision",
-      "timestamp": 2713,
+      "timestamp": 3822,
       "data": {
         "decision": "approved"
       }
     },
     {
       "type": "tool_call",
-      "timestamp": 2735,
+      "timestamp": 3847,
       "data": {
         "agent": "Intake",
         "tool": "reject_applicant",
@@ -85,45 +85,46 @@
     },
     {
       "type": "agent_reply",
-      "timestamp": 3643,
+      "timestamp": 5270,
       "data": {
         "agent": "Intake",
-        "text": "Sam Rivera has been rejected because they accepted another offer."
+        "text": "Sam Rivera has been rejected."
       }
     },
     {
       "type": "turn_usage",
-      "timestamp": 3643,
+      "timestamp": 5270,
       "data": {
         "requests": 3,
         "inputTokens": 1538,
-        "outputTokens": 65
+        "cachedInputTokens": 0,
+        "outputTokens": 60
       }
     },
     {
       "type": "user_message",
-      "timestamp": 3643,
+      "timestamp": 5270,
       "data": {
         "text": "Reject Maria Lopez, not a fit"
       }
     },
     {
       "type": "trace",
-      "timestamp": 3643,
+      "timestamp": 5270,
       "data": {
-        "traceId": "trace_ae\u0038\u0034\u0035d\u0033a\u0032\u0038ea\u0034bc\u0033\u0039fea\u0035ae\u0035\u0037\u0038\u0038\u0039bd\u0035\u0032"
+        "traceId": "trace_9d43264a8b76467f9a5a6ded83e3d72d"
       }
     },
     {
       "type": "guardrail",
-      "timestamp": 3644,
+      "timestamp": 5270,
       "data": {
         "result": "pass"
       }
     },
     {
       "type": "tool_call",
-      "timestamp": 5106,
+      "timestamp": 6387,
       "data": {
         "agent": "Intake",
         "tool": "lookup_applicant",
@@ -141,12 +142,12 @@
             "notes": "Strong calendar management background. Phone screen went well."
           }
         },
-        "durationMs": 1
+        "durationMs": 0
       }
     },
     {
       "type": "approval_requested",
-      "timestamp": 6809,
+      "timestamp": 7931,
       "data": {
         "agent": "Intake",
         "tool": "reject_applicant",
@@ -158,52 +159,53 @@
     },
     {
       "type": "approval_decision",
-      "timestamp": 6809,
+      "timestamp": 7931,
       "data": {
         "decision": "declined"
       }
     },
     {
       "type": "agent_reply",
-      "timestamp": 8400,
+      "timestamp": 9917,
       "data": {
         "agent": "Intake",
-        "text": "A human recruiter declined the rejection. Maria Lopez’s status is unchanged."
+        "text": "A human reviewer declined the rejection. Maria Lopez’s status is unchanged."
       }
     },
     {
       "type": "turn_usage",
-      "timestamp": 8400,
+      "timestamp": 9917,
       "data": {
         "requests": 3,
-        "inputTokens": 2064,
+        "inputTokens": 2049,
+        "cachedInputTokens": 0,
         "outputTokens": 68
       }
     },
     {
       "type": "user_message",
-      "timestamp": 8400,
+      "timestamp": 9917,
       "data": {
         "text": "What stages are Sam Rivera and Maria Lopez in now?"
       }
     },
     {
       "type": "trace",
-      "timestamp": 8400,
+      "timestamp": 9917,
       "data": {
-        "traceId": "trace_\u0034c\u0032\u0039\u0033\u0031e\u0030cc\u0036\u0030\u0034f\u0033\u0032b\u0030\u0030\u0037\u0037\u0030\u0036\u0035a\u0037\u0034e\u0037\u0033\u0033a"
+        "traceId": "trace_b84960a585a245f7b1e4f72d9e4227ef"
       }
     },
     {
       "type": "guardrail",
-      "timestamp": 8401,
+      "timestamp": 9917,
       "data": {
         "result": "pass"
       }
     },
     {
       "type": "tool_call",
-      "timestamp": 9864,
+      "timestamp": 11392,
       "data": {
         "agent": "Intake",
         "tool": "lookup_applicant",
@@ -226,7 +228,7 @@
     },
     {
       "type": "tool_call",
-      "timestamp": 9864,
+      "timestamp": 11392,
       "data": {
         "agent": "Intake",
         "tool": "lookup_applicant",
@@ -249,7 +251,7 @@
     },
     {
       "type": "agent_reply",
-      "timestamp": 11151,
+      "timestamp": 12905,
       "data": {
         "agent": "Intake",
         "text": "- Sam Rivera: **Rejected**\n- Maria Lopez: **Phone screen**"
@@ -257,10 +259,11 @@
     },
     {
       "type": "turn_usage",
-      "timestamp": 11151,
+      "timestamp": 12905,
       "data": {
         "requests": 2,
-        "inputTokens": 1768,
+        "inputTokens": 1758,
+        "cachedInputTokens": 0,
         "outputTokens": 71
       }
     }

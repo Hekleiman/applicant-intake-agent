@@ -2,7 +2,6 @@ import { tool } from '@openai/agents';
 import { z } from 'zod';
 import { applicants } from '../data/applicants.js';
 import { SLOTS, bookings, openSlots } from '../data/slots.js';
-import { recordToolCall } from '../lib/recorder.js';
 
 const currentSlotOf = (id: string) => SLOTS.find((s) => bookings.get(s) === id);
 
@@ -14,7 +13,6 @@ export const bookInterview = tool({
     slot: z.enum(SLOTS).describe('One of the open interview slots.'),
   }),
   execute: async ({ applicantId, slot }) => {
-    const started = Date.now();
     const applicant = applicants.find((a) => a.id === applicantId.trim());
 
     const currentSlot = applicant && currentSlotOf(applicant.id);
@@ -35,7 +33,6 @@ export const bookInterview = tool({
     }
 
     console.log(`[tool] book_interview(${applicantId}, ${slot}) -> ${JSON.stringify(result)}`);
-    recordToolCall('book_interview', { applicantId, slot }, result, started);
     return result;
   },
 });

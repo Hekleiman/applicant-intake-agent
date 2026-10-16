@@ -1,31 +1,31 @@
 {
   "scenario": "booking",
-  "recordedAt": "2026-10-16T21:38:27.644Z",
+  "recordedAt": "2026-10-16T22:18:50.000Z",
   "events": [
     {
       "type": "user_message",
-      "timestamp": 7,
+      "timestamp": 9,
       "data": {
         "text": "Book Maria Lopez for Mon 10:00"
       }
     },
     {
       "type": "trace",
-      "timestamp": 7,
+      "timestamp": 9,
       "data": {
-        "traceId": "trace_\u0035\u0032d\u0031eeba\u0037e\u0035\u0036\u0034\u0030\u0036a\u0039\u0039\u0034f\u0036fb\u0034\u0034\u0036\u0036fd\u0030e\u0035"
+        "traceId": "trace_28717a2017ce43139288eedeb9d0d02b"
       }
     },
     {
       "type": "guardrail",
-      "timestamp": 10,
+      "timestamp": 9,
       "data": {
         "result": "pass"
       }
     },
     {
       "type": "handoff",
-      "timestamp": 1051,
+      "timestamp": 2170,
       "data": {
         "from": "Intake",
         "to": "Scheduler"
@@ -33,7 +33,7 @@
     },
     {
       "type": "tool_call",
-      "timestamp": 2605,
+      "timestamp": 3271,
       "data": {
         "agent": "Scheduler",
         "tool": "lookup_applicant",
@@ -51,12 +51,12 @@
             "notes": "Strong calendar management background. Phone screen went well."
           }
         },
-        "durationMs": 0
+        "durationMs": 1
       }
     },
     {
       "type": "tool_call",
-      "timestamp": 3638,
+      "timestamp": 4616,
       "data": {
         "agent": "Scheduler",
         "tool": "book_interview",
@@ -70,50 +70,51 @@
           "name": "Maria Lopez",
           "slot": "Mon 10:00"
         },
-        "durationMs": 0
+        "durationMs": 1
       }
     },
     {
       "type": "agent_reply",
-      "timestamp": 4976,
+      "timestamp": 5779,
       "data": {
         "agent": "Scheduler",
-        "text": "Maria Lopez’s interview is booked for Mon 10:00."
+        "text": "Booked Maria Lopez’s interview for Mon 10:00."
       }
     },
     {
       "type": "turn_usage",
-      "timestamp": 4976,
+      "timestamp": 5779,
       "data": {
         "requests": 4,
         "inputTokens": 2081,
-        "outputTokens": 85
+        "cachedInputTokens": 0,
+        "outputTokens": 84
       }
     },
     {
       "type": "user_message",
-      "timestamp": 4976,
+      "timestamp": 5779,
       "data": {
         "text": "What about Tuesday at 3pm for Sam Chen?"
       }
     },
     {
       "type": "trace",
-      "timestamp": 4976,
+      "timestamp": 5779,
       "data": {
-        "traceId": "trace_\u0030b\u0035d\u0030d\u0039eaa\u0036\u0036\u0034b\u0039eb\u0036\u0031\u0032\u0031\u0036c\u0034\u0033\u0035e\u0030\u0033\u0039\u0033\u0034"
+        "traceId": "trace_3d7d0b39fcbb455a8d10bd8e7c9fd2b5"
       }
     },
     {
       "type": "guardrail",
-      "timestamp": 4978,
+      "timestamp": 5779,
       "data": {
         "result": "pass"
       }
     },
     {
       "type": "handoff",
-      "timestamp": 6074,
+      "timestamp": 6942,
       "data": {
         "from": "Intake",
         "to": "Scheduler"
@@ -121,7 +122,7 @@
     },
     {
       "type": "tool_call",
-      "timestamp": 7241,
+      "timestamp": 8039,
       "data": {
         "agent": "Scheduler",
         "tool": "lookup_applicant",
@@ -139,12 +140,12 @@
             "notes": "Availability did not match the required shifts."
           }
         },
-        "durationMs": 0
+        "durationMs": 1
       }
     },
     {
       "type": "tool_call",
-      "timestamp": 8353,
+      "timestamp": 9240,
       "data": {
         "agent": "Scheduler",
         "tool": "list_open_slots",
@@ -156,12 +157,12 @@
             "Wed 09:30"
           ]
         },
-        "durationMs": 1
+        "durationMs": 0
       }
     },
     {
       "type": "agent_reply",
-      "timestamp": 9878,
+      "timestamp": 10595,
       "data": {
         "agent": "Scheduler",
         "text": "Tuesday at 3:00 PM isn’t available. Open slots are Mon 14:00, Tue 11:00, and Wed 09:30."
@@ -169,37 +170,38 @@
     },
     {
       "type": "turn_usage",
-      "timestamp": 9878,
+      "timestamp": 10595,
       "data": {
         "requests": 4,
-        "inputTokens": 2959,
+        "inputTokens": 2955,
+        "cachedInputTokens": 0,
         "outputTokens": 88
       }
     },
     {
       "type": "user_message",
-      "timestamp": 9878,
+      "timestamp": 10595,
       "data": {
         "text": "Book Sam Chen for Tue 11:00"
       }
     },
     {
       "type": "trace",
-      "timestamp": 9878,
+      "timestamp": 10595,
       "data": {
-        "traceId": "trace_\u0030\u0030\u0030\u0036\u0037\u0037\u0034c\u0034\u0032\u0030\u0035\u0034\u0038fea\u0037db\u0032\u0037\u0031\u0035a\u0037\u0032\u0034\u0030\u0036\u0032\u0032"
+        "traceId": "trace_9fedaf248b9640ecab1cb9505decdd7a"
       }
     },
     {
       "type": "guardrail",
-      "timestamp": 9879,
+      "timestamp": 10595,
       "data": {
         "result": "pass"
       }
     },
     {
       "type": "handoff",
-      "timestamp": 10807,
+      "timestamp": 11718,
       "data": {
         "from": "Intake",
         "to": "Scheduler"
@@ -207,7 +209,7 @@
     },
     {
       "type": "tool_call",
-      "timestamp": 11949,
+      "timestamp": 13104,
       "data": {
         "agent": "Scheduler",
         "tool": "lookup_applicant",
@@ -230,7 +232,7 @@
     },
     {
       "type": "tool_call",
-      "timestamp": 13323,
+      "timestamp": 14387,
       "data": {
         "agent": "Scheduler",
         "tool": "book_interview",
@@ -242,12 +244,12 @@
           "booked": false,
           "reason": "applicant rejected"
         },
-        "durationMs": 0
+        "durationMs": 1
       }
     },
     {
       "type": "agent_reply",
-      "timestamp": 14629,
+      "timestamp": 15925,
       "data": {
         "agent": "Scheduler",
         "text": "Unable to book the interview because Sam Chen’s application was rejected."
@@ -255,37 +257,38 @@
     },
     {
       "type": "turn_usage",
-      "timestamp": 14629,
+      "timestamp": 15925,
       "data": {
         "requests": 4,
-        "inputTokens": 3845,
+        "inputTokens": 3841,
+        "cachedInputTokens": 0,
         "outputTokens": 85
       }
     },
     {
       "type": "user_message",
-      "timestamp": 14629,
+      "timestamp": 15925,
       "data": {
         "text": "Book Sam Rivera for Mon 10:00"
       }
     },
     {
       "type": "trace",
-      "timestamp": 14629,
+      "timestamp": 15925,
       "data": {
-        "traceId": "trace_a\u0030b\u0038\u0035\u0038\u0037a\u0035\u0032f\u0038\u0034b\u0032\u0032\u0039\u0038\u0037\u0039\u0030f\u0033c\u0031\u0038b\u0032\u0031\u0032\u0033b"
+        "traceId": "trace_adc5960bceb74279b04363aed4f6682b"
       }
     },
     {
       "type": "guardrail",
-      "timestamp": 14630,
+      "timestamp": 15925,
       "data": {
         "result": "pass"
       }
     },
     {
       "type": "handoff",
-      "timestamp": 16796,
+      "timestamp": 17081,
       "data": {
         "from": "Intake",
         "to": "Scheduler"
@@ -293,7 +296,7 @@
     },
     {
       "type": "tool_call",
-      "timestamp": 18277,
+      "timestamp": 18131,
       "data": {
         "agent": "Scheduler",
         "tool": "lookup_applicant",
@@ -311,12 +314,12 @@
             "notes": "Offer extended; awaiting response."
           }
         },
-        "durationMs": 0
+        "durationMs": 1
       }
     },
     {
       "type": "tool_call",
-      "timestamp": 19395,
+      "timestamp": 19673,
       "data": {
         "agent": "Scheduler",
         "tool": "book_interview",
@@ -333,12 +336,12 @@
             "Wed 09:30"
           ]
         },
-        "durationMs": 0
+        "durationMs": 1
       }
     },
     {
       "type": "tool_call",
-      "timestamp": 20415,
+      "timestamp": 21030,
       "data": {
         "agent": "Scheduler",
         "tool": "list_open_slots",
@@ -350,23 +353,24 @@
             "Wed 09:30"
           ]
         },
-        "durationMs": 0
+        "durationMs": 1
       }
     },
     {
       "type": "agent_reply",
-      "timestamp": 21799,
+      "timestamp": 22425,
       "data": {
         "agent": "Scheduler",
-        "text": "Mon 10:00 is unavailable. Open slots are Mon 14:00, Tue 11:00, and Wed 09:30."
+        "text": "Mon 10:00 is taken. Open slots are Mon 14:00, Tue 11:00, and Wed 09:30."
       }
     },
     {
       "type": "turn_usage",
-      "timestamp": 21799,
+      "timestamp": 22425,
       "data": {
         "requests": 5,
-        "inputTokens": 6010,
+        "inputTokens": 6005,
+        "cachedInputTokens": 4629,
         "outputTokens": 117
       }
     }

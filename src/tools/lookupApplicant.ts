@@ -1,7 +1,6 @@
 import { tool } from '@openai/agents';
 import { z } from 'zod';
 import { applicants } from '../data/applicants.js';
-import { recordToolCall } from '../lib/recorder.js';
 
 export const lookupApplicant = tool({
   name: 'lookup_applicant',
@@ -13,7 +12,6 @@ export const lookupApplicant = tool({
       .describe('An applicant ID like A-1001, or a full or partial applicant name.'),
   }),
   execute: async ({ query }) => {
-    const started = Date.now();
     const q = query.trim().toLowerCase();
     const matches = applicants.filter(
       (a) => a.id.toLowerCase() === q || a.name.toLowerCase().includes(q),
@@ -27,7 +25,6 @@ export const lookupApplicant = tool({
         : matches.length > 1
           ? { found: false, ambiguous: matches.map((a) => a.name) }
           : { found: false };
-    recordToolCall('lookup_applicant', { query }, result, started);
     return result;
   },
 });

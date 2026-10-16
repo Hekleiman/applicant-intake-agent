@@ -8,11 +8,12 @@ import {
   MemorySession,
   RunContext,
   RunState,
+  Runner,
   getGlobalTraceProvider,
-  run,
   withTrace,
+  type InputGuardrailResult,
 } from '@openai/agents';
-import { record } from './lib/recorder.js';
+import { attachRecorder, record, redactLastUserMessage } from './lib/recorder.js';
 import { takeRequestCount } from './lib/requestCounter.js';
 import { startingAgent } from './agents/index.js';
 import { auditEntry, type AppContext } from './context.js';
@@ -27,6 +28,9 @@ const groupId = `chat_${randomUUID()}`;
 const interactive = process.stdin.isTTY === true;
 const session = new MemorySession();
 const appContext: AppContext = { audit: [] };
+// One Runner for every run, including resumes, so its lifecycle hooks see all tool calls.
+const runner = new Runner();
+attachRecorder(runner);
 const rl = createInterface({ input: process.stdin, terminal: false });
 
 // One iterator for all input, so approval answers come from the same stream as chat
@@ -45,7 +49,8 @@ type Result = RunResult<AppContext, Agent<AppContext, any>>;
 
 let turnRequests = 0;
 // Summed over the initial run and every resume: a restored run's usage starts from zero.
-let turnUsage = { requests: 0, inputTokens: 0, outputTokens: 0 };
+const emptyUsage = () => ({ requests: 0, inputTokens: 0, cachedInputTokens: 0, outputTokens: 0 });
+let turnUsage = emptyUsage();
 
 const reportSegment = (label: string, result: Result) => {
   for (const item of result.newItems) {
@@ -57,6 +62,7 @@ const reportSegment = (label: string, result: Result) => {
   );
   turnUsage.requests += usage.requests;
   turnUsage.inputTokens += usage.inputTokens;
+  for (const details of usage.inputTokensDetails) turnUsage.cachedInputTokens += details.cached_tokens ?? 0;
   turnUsage.outputTokens += usage.outputTokens;
   const requests = takeRequestCount();
   turnRequests += requests;
@@ -111,7 +117,7 @@ async function resolveApprovals(result: Result): Promise<{ result: Result; resum
       saved,
       new RunContext(appContext),
     );
-    result = await run(startingAgent, restored, { session, maxTurns: MAX_TURNS });
+    result = await runner.run(startingAgent, restored, { session, maxTurns: MAX_TURNS });
     resumes++;
     reportSegment(`resume ${resumes}`, result);
   }
@@ -137,17 +143,31 @@ for (let line = await nextLine(); line !== undefined; line = await nextLine()) {
     async (trace) => {
       console.log(`[trace] ${trace.traceId} group=${groupId}`);
       record('trace', { traceId: trace.traceId });
+      // The blocking guardrail runs first thing in the run; its result is read afterwards and
+      // recorded at this moment so the timeline stays in order.
+      const runStartedAt = Date.now();
+      const recordGuardrail = (results: InputGuardrailResult[]) => {
+        for (const { output } of results) {
+          const reason = output.outputInfo?.reason;
+          record(
+            'guardrail',
+            output.tripwireTriggered ? { result: 'blocked', reason } : { result: 'pass' },
+            runStartedAt,
+          );
+        }
+      };
       try {
         // Triage routing: every message starts at Intake, which hands scheduling off one way
         // to the Scheduler. Measured against sticky routing (start at the last agent), triage
         // passed 21/21 checks vs 20/21, at ~21% more input tokens.
         // traceIncludeSensitiveData is left at its default (true): traces contain message text and
         // tool inputs and outputs. With real applicant data, set it to false or redact first.
-        const first = await run(startingAgent, line, {
+        const first = await runner.run(startingAgent, line, {
           session,
           context: appContext,
           maxTurns: MAX_TURNS,
         });
+        recordGuardrail(first.inputGuardrailResults);
         reportSegment('initial', first);
         if (first.interruptions.length > 0) console.log('[paused] waiting for human approval');
 
@@ -166,6 +186,8 @@ for (let line = await nextLine(); line !== undefined; line = await nextLine()) {
       } catch (error) {
         if (error instanceof InputGuardrailTripwireTriggered) {
           const reason = error.result.output.outputInfo?.reason ?? 'unknown';
+          redactLastUserMessage();
+          recordGuardrail([error.result]);
           const blockedReply =
             "Sorry, I can't process messages containing sensitive ID numbers or very long text. Please rephrase.";
           console.log(`Agent: ${blockedReply}`);
@@ -179,7 +201,7 @@ for (let line = await nextLine(); line !== undefined; line = await nextLine()) {
       }
 
       record('turn_usage', turnUsage);
-      turnUsage = { requests: 0, inputTokens: 0, outputTokens: 0 };
+      turnUsage = emptyUsage();
       console.log(`[http] model requests this turn=${turnRequests + takeRequestCount()}`);
       turnRequests = 0;
       console.log(`[session] items=${(await session.getItems()).length}`);
