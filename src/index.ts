@@ -1,9 +1,10 @@
 import { createInterface } from 'node:readline';
 import { MemorySession, run } from '@openai/agents';
-import { intakeAgent } from './agents/intake.js';
+import { startingAgent } from './agents/index.js';
 
 const interactive = process.stdin.isTTY === true;
 const session = new MemorySession();
+let currentAgent = startingAgent;
 const rl = createInterface({ input: process.stdin, terminal: false });
 
 const prompt = () => {
@@ -20,12 +21,15 @@ for await (const raw of rl) {
   if (line.toLowerCase() === 'exit') break;
 
   try {
-    const result = await run(intakeAgent, line, { session, maxTurns: 6 });
+    const result = await run(currentAgent, line, { session, maxTurns: 6 });
 
     for (const item of result.newItems) {
       console.log(`[item] ${item.type}`);
     }
     console.log(`Agent: ${result.finalOutput}`);
+
+    currentAgent = result.lastAgent ?? currentAgent;
+    console.log(`[agent] ${currentAgent.name}`);
 
     const usage = result.state.usage;
     console.log(
