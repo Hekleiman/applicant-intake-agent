@@ -211,11 +211,11 @@
 
   var SCENARIOS = [
     { id: 'lookup', tab: 'Look up an applicant',
-      intro: 'The recruiter asks where applicants are in the hiring process. The assistant checks their files, asks which person is meant when a name matches more than one applicant, and politely declines a request that has nothing to do with hiring.' },
+      intro: 'The recruiter asks where applicants are in the hiring process. The assistant checks their files, asks which person is meant when a name matches more than one applicant, declines a request that has nothing to do with hiring, and explains what it can help with. Before the assistant acts on a message, a separate AI check decides whether the request is about hiring.' },
     { id: 'booking', tab: 'Book an interview',
-      intro: 'The recruiter asks for interviews to be booked. The assistant only confirms a booking when it really happened, and explains in plain words when a time is taken or an applicant can no longer be booked.' },
+      intro: 'The recruiter asks for interviews to be booked. The assistant only confirms a booking when it really happened, and explains in plain words when a time is taken or an applicant can no longer be booked. It offers no open times for an applicant who was rejected.' },
     { id: 'guardrail', tab: 'Protect sensitive information',
-      intro: 'Some messages contain something that looks like a Social Security number, or are far too long. Those are stopped before they ever reach the AI. In this replay, the blocked numbers are shown as # signs, because they were never stored.' },
+      intro: 'Some messages contain something that looks like a Social Security number, or are far too long. Those are stopped before they ever reach the AI. In this replay, the blocked numbers are shown as # signs, because they were never stored. A phone number is not mistaken for one and goes through.' },
     { id: 'approval', tab: 'Human approval',
       intro: 'Rejecting an applicant is a serious step, so the assistant pauses and waits for a recruiter to approve or decline before anything changes.' }
   ];
@@ -322,9 +322,17 @@
         step.detail = 'No applicant matched that name.';
       }
     } else if (d.tool === 'list_open_slots') {
-      step.main = 'Checked which interview times are still open';
-      var open = (out.openSlots || []).map(friendlySlot);
-      step.detail = open.length ? 'Still open: ' + friendlyList(open) + '.' : 'No times are open.';
+      if (out.error) {
+        step.kind = 'warn';
+        step.main = out.error === 'applicant rejected'
+          ? 'Checked for open interview times, but this applicant is no longer being considered'
+          : 'Checked for open interview times, but no applicant with that record could be found';
+        step.detail = 'No times were offered, because this applicant cannot be scheduled.';
+      } else {
+        step.main = 'Checked which interview times are still open';
+        var open = (out.openSlots || []).map(friendlySlot);
+        step.detail = open.length ? 'Still open: ' + friendlyList(open) + '.' : 'No times are open.';
+      }
     } else if (d.tool === 'book_interview') {
       if (out.booked) {
         step.main = 'Booked the interview';
@@ -361,10 +369,34 @@
     return step;
   }
 
+  function tokens(u) {
+    return u.requests + ' model request' + (u.requests === 1 ? '' : 's') + ', ' +
+      u.inputTokens.toLocaleString('en-US') + ' input and ' + u.outputTokens.toLocaleString('en-US') + ' output tokens';
+  }
+  // The small AI check that decides whether a message is about hiring.
+  function describeTopic(e) {
+    var d = e.data;
+    var at = ', at ' + seconds(e.timestamp);
+    if (d.result === 'skipped') {
+      // Not a step of its own: the message was already blocked by the code check.
+      return { techOnly: 'input guardrail topic: skipped (message already blocked by pii_and_length), 0 model requests' };
+    }
+    var tech = 'input guardrail topic: ' + d.result + (d.reason ? ' (' + d.reason + ')' : '') + at +
+      '\nclassifier: "' + (d.classifierReason || '') + '"' +
+      (d.usage ? '\n' + tokens(d.usage) : '');
+    if (d.result === 'blocked') {
+      return { kind: 'stop',
+        main: "Declined: this request has nothing to do with hiring, so the assistant didn't act on it",
+        tech: tech + '\nmain assistant: 0 model requests' };
+    }
+    return { kind: 'ok', main: 'Topic check passed: the request is about hiring', tech: tech };
+  }
+
   function describe(e) {
     var d = e.data;
     switch (e.type) {
       case 'guardrail':
+        if (d.name === 'topic') return describeTopic(e);
         if (d.result === 'pass') {
           return { kind: 'ok', main: 'Safety check passed: no sensitive numbers found',
             tech: 'input guardrail pii_and_length: pass, at ' + seconds(e.timestamp) };
@@ -414,11 +446,13 @@
       else if (e.type === 'trace') turn.traceId = e.data.traceId;
       else {
         var step = describe(e);
-        if (step) turn.steps.push(step);
+        var last = turn.steps[turn.steps.length - 1];
+        if (step && step.techOnly) { if (last) last.tech = (last.tech ? last.tech + '\n' : '') + step.techOnly; }
+        else if (step) turn.steps.push(step);
       }
     });
     turns.forEach(function (t) {
-      var usedTools = t.steps.some(function (s) { return s.kind !== 'ok' || !/^Safety check/.test(s.main); });
+      var usedTools = t.steps.some(function (s) { return s.kind !== 'ok' || !/^(Safety|Topic) check/.test(s.main); });
       if (!usedTools && t.reply) {
         t.steps.push({ kind: '', main: 'Answered directly, no applicant records were needed' });
       }
@@ -505,6 +539,13 @@
       if (t.usage) {
         techLines.push('model requests: ' + t.usage.requests + ', tokens: ' + t.usage.inputTokens.toLocaleString('en-US') +
           ' input, ' + t.usage.outputTokens.toLocaleString('en-US') + ' output');
+        var topic = t.usage.topicCheck;
+        if (topic) {
+          var main = { requests: t.usage.requests - topic.requests, inputTokens: t.usage.inputTokens - topic.inputTokens,
+            outputTokens: t.usage.outputTokens - topic.outputTokens };
+          techLines.push('  main assistant: ' + tokens(main));
+          techLines.push('  topic check: ' + tokens(topic));
+        }
       }
       if (t.traceId) techLines.push('trace ID: ' + t.traceId);
       if (techLines.length) {

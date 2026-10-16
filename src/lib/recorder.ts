@@ -6,15 +6,24 @@ import type { Runner } from '@openai/agents';
 // Tool calls and handoffs come from the Runner's lifecycle hooks (attachRecorder), so tools,
 // guardrails and agents don't know the recorder exists.
 
+type Usage = { requests: number; inputTokens: number; cachedInputTokens: number; outputTokens: number };
+
 type EventData = {
   user_message: { text: string };
-  guardrail: { result: 'pass' | 'blocked'; reason?: string };
+  guardrail: {
+    name: string;
+    result: 'pass' | 'blocked' | 'skipped';
+    reason?: string;
+    classifierReason?: string;
+    usage?: Usage;
+  };
   tool_call: { agent: string; tool: string; args: unknown; output: unknown; durationMs: number };
   handoff: { from: string; to: string };
   approval_requested: { agent: string; tool: string; args: unknown };
   approval_decision: { decision: 'approved' | 'declined' };
   agent_reply: { agent: string; text: string };
-  turn_usage: { requests: number; inputTokens: number; cachedInputTokens: number; outputTokens: number };
+  // Totals for the turn, topic check included; topicCheck is its share.
+  turn_usage: Usage & { topicCheck: Usage };
   trace: { traceId: string };
 };
 

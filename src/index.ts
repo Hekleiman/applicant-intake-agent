@@ -17,8 +17,10 @@ import { attachRecorder, record, redactLastUserMessage } from './lib/recorder.js
 import { takeRequestCount } from './lib/requestCounter.js';
 import { startingAgent } from './agents/index.js';
 import { auditEntry, type AppContext } from './context.js';
+import { topicGuardrail, type TopicOutputInfo, type TopicUsage } from './guardrails/topicGuardrail.js';
 
 const MAX_TURNS = 8;
+const OFF_TOPIC_REPLY = 'I can only help with applicants, interviews and hiring decisions.';
 const DECLINE_MESSAGE =
   'A human recruiter declined this rejection. Do not retry. Tell the user it was declined and the status is unchanged.';
 
@@ -51,19 +53,49 @@ let turnRequests = 0;
 // Summed over the initial run and every resume: a restored run's usage starts from zero.
 const emptyUsage = () => ({ requests: 0, inputTokens: 0, cachedInputTokens: 0, outputTokens: 0 });
 let turnUsage = emptyUsage();
+let topicUsage = emptyUsage();
 
-const reportSegment = (label: string, result: Result) => {
+const addUsage = (target: TopicUsage, add: TopicUsage) => {
+  target.requests += add.requests;
+  target.inputTokens += add.inputTokens;
+  target.cachedInputTokens += add.cachedInputTokens;
+  target.outputTokens += add.outputTokens;
+};
+
+// The topic check's own model call, or undefined when it was skipped or didn't run.
+const topicUsageOf = (results: InputGuardrailResult[]): TopicUsage | undefined => {
+  const result = results.find((r) => r.guardrail.name === topicGuardrail.name);
+  const info = result?.output.outputInfo as TopicOutputInfo | undefined;
+  return info?.checked ? info.usage : undefined;
+};
+
+const describeTopic = (u: TopicUsage) =>
+  `topic_check requests=${u.requests} input=${u.inputTokens} output=${u.outputTokens}`;
+
+// `topic` is the topic check that ran before this segment; it is counted in the [usage] line
+// so the line matches the HTTP counter, which sees both calls.
+const reportSegment = (label: string, result: Result, topic?: TopicUsage) => {
   for (const item of result.newItems) {
     console.log(`[item] ${item.type}`);
   }
   const usage = result.state.usage;
+  const main = {
+    requests: usage.requests,
+    inputTokens: usage.inputTokens,
+    cachedInputTokens: usage.inputTokensDetails.reduce((sum, d) => sum + (d.cached_tokens ?? 0), 0),
+    outputTokens: usage.outputTokens,
+  };
+  const total = emptyUsage();
+  addUsage(total, main);
+  if (topic) addUsage(total, topic);
+  const breakdown = topic
+    ? ` (main requests=${main.requests} input=${main.inputTokens} output=${main.outputTokens}; ${describeTopic(topic)})`
+    : '';
   console.log(
-    `[usage] ${label} requests=${usage.requests} input=${usage.inputTokens} output=${usage.outputTokens} total=${usage.totalTokens}`,
+    `[usage] ${label} requests=${total.requests} input=${total.inputTokens} output=${total.outputTokens} total=${total.inputTokens + total.outputTokens}${breakdown}`,
   );
-  turnUsage.requests += usage.requests;
-  turnUsage.inputTokens += usage.inputTokens;
-  for (const details of usage.inputTokensDetails) turnUsage.cachedInputTokens += details.cached_tokens ?? 0;
-  turnUsage.outputTokens += usage.outputTokens;
+  addUsage(turnUsage, total);
+  if (topic) addUsage(topicUsage, topic);
   const requests = takeRequestCount();
   turnRequests += requests;
   console.log(`[http] ${label} model requests=${requests}`);
@@ -147,11 +179,29 @@ for (let line = await nextLine(); line !== undefined; line = await nextLine()) {
       // recorded at this moment so the timeline stays in order.
       const runStartedAt = Date.now();
       const recordGuardrail = (results: InputGuardrailResult[]) => {
-        for (const { output } of results) {
+        for (const { guardrail, output } of results) {
+          const name = guardrail.name;
           const reason = output.outputInfo?.reason;
+          if (name !== topicGuardrail.name) {
+            record(
+              'guardrail',
+              output.tripwireTriggered ? { name, result: 'blocked', reason } : { name, result: 'pass' },
+              runStartedAt,
+            );
+            continue;
+          }
+          const info = output.outputInfo as TopicOutputInfo;
           record(
             'guardrail',
-            output.tripwireTriggered ? { result: 'blocked', reason } : { result: 'pass' },
+            !info.checked
+              ? { name, result: 'skipped' }
+              : {
+                  name,
+                  result: output.tripwireTriggered ? 'blocked' : 'pass',
+                  ...(reason ? { reason } : {}),
+                  classifierReason: info.classifierReason,
+                  usage: info.usage,
+                },
             runStartedAt,
           );
         }
@@ -168,7 +218,7 @@ for (let line = await nextLine(); line !== undefined; line = await nextLine()) {
           maxTurns: MAX_TURNS,
         });
         recordGuardrail(first.inputGuardrailResults);
-        reportSegment('initial', first);
+        reportSegment('initial', first, topicUsageOf(first.inputGuardrailResults));
         if (first.interruptions.length > 0) console.log('[paused] waiting for human approval');
 
         const { result } = await resolveApprovals(first);
@@ -186,10 +236,23 @@ for (let line = await nextLine(); line !== undefined; line = await nextLine()) {
       } catch (error) {
         if (error instanceof InputGuardrailTripwireTriggered) {
           const reason = error.result.output.outputInfo?.reason ?? 'unknown';
-          redactLastUserMessage();
-          recordGuardrail([error.result]);
-          const blockedReply =
-            "Sorry, I can't process messages containing sensitive ID numbers or very long text. Please rephrase.";
+          const offTopic = reason === 'off_topic';
+          if (!offTopic) redactLastUserMessage();
+          // Every blocking guardrail's result, not just the one that tripped.
+          const results = error.state?._inputGuardrailResults ?? [error.result];
+          recordGuardrail(results);
+          const topic = topicUsageOf(results);
+          if (topic) {
+            addUsage(turnUsage, topic);
+            addUsage(topicUsage, topic);
+            console.log(`[usage] ${describeTopic(topic)}`);
+            const requests = takeRequestCount();
+            turnRequests += requests;
+            console.log(`[http] topic_check model requests=${requests}`);
+          }
+          const blockedReply = offTopic
+            ? OFF_TOPIC_REPLY
+            : "Sorry, I can't process messages containing sensitive ID numbers or very long text. Please rephrase.";
           console.log(`Agent: ${blockedReply}`);
           record('agent_reply', { agent: startingAgent.name, text: blockedReply });
           console.log(`[guardrail] blocked (${reason})`);
@@ -200,8 +263,9 @@ for (let line = await nextLine(); line !== undefined; line = await nextLine()) {
         }
       }
 
-      record('turn_usage', turnUsage);
+      record('turn_usage', { ...turnUsage, topicCheck: topicUsage });
       turnUsage = emptyUsage();
+      topicUsage = emptyUsage();
       console.log(`[http] model requests this turn=${turnRequests + takeRequestCount()}`);
       turnRequests = 0;
       console.log(`[session] items=${(await session.getItems()).length}`);

@@ -5,8 +5,15 @@ const MAX_LENGTH = 2000;
 
 type Input = InputGuardrailFunctionArgs['input'];
 
+export type PolicyViolation = 'ssn_like' | 'too_long';
+
+// The code-only rules, shared with the topic check so it can skip messages blocked here.
+export function findPolicyViolation(text: string): PolicyViolation | null {
+  return SSN_LIKE.test(text) ? 'ssn_like' : text.length > MAX_LENGTH ? 'too_long' : null;
+}
+
 // Text of the newest user message, whether the run got a plain string or a list of items.
-function newestUserText(input: Input): string {
+export function newestUserText(input: Input): string {
   if (typeof input === 'string') return input;
   for (let i = input.length - 1; i >= 0; i--) {
     const item = input[i];
@@ -30,7 +37,7 @@ export const piiGuardrail: InputGuardrail = {
   runInParallel: false,
   execute: async ({ input }) => {
     const text = newestUserText(input);
-    const reason = SSN_LIKE.test(text) ? 'ssn_like' : text.length > MAX_LENGTH ? 'too_long' : null;
+    const reason = findPolicyViolation(text);
     const shape = typeof input === 'string' ? '"string"' : `"array of ${input.length} items"`;
     console.log(
       `[guardrail] input=${shape} newest_len=${text.length} -> ${reason ? `blocked: ${reason}` : 'pass'}`,

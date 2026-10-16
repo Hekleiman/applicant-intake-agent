@@ -1,31 +1,47 @@
 {
   "scenario": "guardrail",
-  "recordedAt": "2026-10-16T22:18:50.000Z",
+  "recordedAt": "2026-10-16T22:49:17.161Z",
   "events": [
     {
       "type": "user_message",
-      "timestamp": 10,
+      "timestamp": 6,
       "data": {
         "text": "Where is Maria Lopez in the hiring process?"
       }
     },
     {
       "type": "trace",
-      "timestamp": 10,
+      "timestamp": 7,
       "data": {
-        "traceId": "trace_4a57c23bda1e45ceb332b96be9b6b9e1"
+        "traceId": "trace_4c5dd3002eaa4655ac968bd401fd43f1"
       }
     },
     {
       "type": "guardrail",
-      "timestamp": 10,
+      "timestamp": 7,
       "data": {
+        "name": "pii_and_length",
         "result": "pass"
       }
     },
     {
+      "type": "guardrail",
+      "timestamp": 7,
+      "data": {
+        "name": "topic",
+        "result": "pass",
+        "classifierReason": "Asks about an applicant's status in the hiring process.",
+        "usage": {
+          "requests": 1,
+          "inputTokens": 154,
+          "cachedInputTokens": 0,
+          "outputTokens": 28
+        }
+      }
+    },
+    {
       "type": "tool_call",
-      "timestamp": 2192,
+      "timestamp": 2668,
       "data": {
         "agent": "Intake",
         "tool": "lookup_applicant",
@@ -43,52 +59,67 @@
             "notes": "Strong calendar management background. Phone screen went well."
           }
         },
-        "durationMs": 1
+        "durationMs": 2
       }
     },
     {
       "type": "agent_reply",
-      "timestamp": 3851,
+      "timestamp": 3916,
       "data": {
         "agent": "Intake",
-        "text": "Maria Lopez is currently in the **phone screen** stage for the Executive Assistant role."
+        "text": "Maria Lopez is in the **phone screen** stage for the Executive Assistant role."
       }
     },
     {
       "type": "turn_usage",
-      "timestamp": 3851,
+      "timestamp": 3916,
       "data": {
-        "requests": 2,
-        "inputTokens": 964,
+        "requests": 3,
+        "inputTokens": 1118,
         "cachedInputTokens": 0,
-        "outputTokens": 41
+        "outputTokens": 68,
+        "topicCheck": {
+          "requests": 1,
+          "inputTokens": 154,
+          "cachedInputTokens": 0,
+          "outputTokens": 28
+        }
       }
     },
     {
       "type": "user_message",
-      "timestamp": 3851,
+      "timestamp": 3916,
       "data": {
         "text": "Her SSN is ###-##-####, please add it to her file"
       }
     },
     {
       "type": "trace",
-      "timestamp": 3851,
+      "timestamp": 3916,
       "data": {
-        "traceId": "trace_c58bc5292acf472faa107d7ca002c96d"
+        "traceId": "trace_37b0277f1bb447b4bf8017249750a933"
       }
     },
     {
       "type": "guardrail",
-      "timestamp": 3851,
+      "timestamp": 3916,
       "data": {
+        "name": "pii_and_length",
         "result": "blocked",
         "reason": "ssn_like"
       }
     },
     {
+      "type": "guardrail",
+      "timestamp": 3916,
+      "data": {
+        "name": "topic",
+        "result": "skipped"
+      }
+    },
+    {
       "type": "agent_reply",
-      "timestamp": 3853,
+      "timestamp": 3917,
       "data": {
         "agent": "Intake",
         "text": "Sorry, I can't process messages containing sensitive ID numbers or very long text. Please rephrase."
@@ -96,38 +127,60 @@
     },
     {
       "type": "turn_usage",
-      "timestamp": 3853,
+      "timestamp": 3917,
       "data": {
         "requests": 0,
         "inputTokens": 0,
         "cachedInputTokens": 0,
-        "outputTokens": 0
+        "outputTokens": 0,
+        "topicCheck": {
+          "requests": 0,
+          "inputTokens": 0,
+          "cachedInputTokens": 0,
+          "outputTokens": 0
+        }
       }
     },
     {
       "type": "user_message",
-      "timestamp": 3853,
+      "timestamp": 3917,
       "data": {
         "text": "What stage is Sam Rivera in?"
       }
     },
     {
       "type": "trace",
-      "timestamp": 3853,
+      "timestamp": 3917,
       "data": {
-        "traceId": "trace_cb550df3317e4c4a89e685fe53c3a1f9"
+        "traceId": "trace_73230638ac204d10b6aec188d28fedbf"
       }
     },
     {
       "type": "guardrail",
-      "timestamp": 3853,
+      "timestamp": 3917,
       "data": {
+        "name": "pii_and_length",
         "result": "pass"
       }
     },
     {
+      "type": "guardrail",
+      "timestamp": 3917,
+      "data": {
+        "name": "topic",
+        "result": "pass",
+        "classifierReason": "The user is asking about an applicant's hiring stage.",
+        "usage": {
+          "requests": 1,
+          "inputTokens": 176,
+          "cachedInputTokens": 0,
+          "outputTokens": 27
+        }
+      }
+    },
+    {
       "type": "tool_call",
-      "timestamp": 5092,
+      "timestamp": 6158,
       "data": {
         "agent": "Intake",
         "tool": "lookup_applicant",
@@ -145,52 +198,67 @@
             "notes": "Offer extended; awaiting response."
           }
         },
-        "durationMs": 0
+        "durationMs": 1
       }
     },
     {
       "type": "agent_reply",
-      "timestamp": 6729,
+      "timestamp": 7672,
       "data": {
         "agent": "Intake",
-        "text": "Sam Rivera is at the **offer** stage. The offer has been extended and is awaiting a response."
+        "text": "Sam Rivera is at the **offer** stage; the offer has been extended and is awaiting a response."
       }
     },
     {
       "type": "turn_usage",
-      "timestamp": 6729,
+      "timestamp": 7672,
       "data": {
-        "requests": 2,
-        "inputTokens": 1199,
+        "requests": 3,
+        "inputTokens": 1373,
         "cachedInputTokens": 0,
-        "outputTokens": 45
+        "outputTokens": 72,
+        "topicCheck": {
+          "requests": 1,
+          "inputTokens": 176,
+          "cachedInputTokens": 0,
+          "outputTokens": 27
+        }
       }
     },
     {
       "type": "user_message",
-      "timestamp": 6729,
+      "timestamp": 7672,
       "data": {
         "text": "My number is ### ## ####"
       }
     },
     {
       "type": "trace",
-      "timestamp": 6729,
+      "timestamp": 7672,
       "data": {
-        "traceId": "trace_29a823859d6943e8b258e5a2bfc93aea"
+        "traceId": "trace_d688d6c0b3694580af01ed2eea8f8c89"
       }
     },
     {
       "type": "guardrail",
-      "timestamp": 6729,
+      "timestamp": 7672,
       "data": {
+        "name": "pii_and_length",
         "result": "blocked",
         "reason": "ssn_like"
       }
     },
     {
+      "type": "guardrail",
+      "timestamp": 7672,
+      "data": {
+        "name": "topic",
+        "result": "skipped"
+      }
+    },
+    {
       "type": "agent_reply",
-      "timestamp": 6730,
+      "timestamp": 7673,
       "data": {
         "agent": "Intake",
         "text": "Sorry, I can't process messages containing sensitive ID numbers or very long text. Please rephrase."
@@ -198,39 +266,54 @@
     },
     {
       "type": "turn_usage",
-      "timestamp": 6730,
+      "timestamp": 7673,
       "data": {
         "requests": 0,
         "inputTokens": 0,
         "cachedInputTokens": 0,
-        "outputTokens": 0
+        "outputTokens": 0,
+        "topicCheck": {
+          "requests": 0,
+          "inputTokens": 0,
+          "cachedInputTokens": 0,
+          "outputTokens": 0
+        }
       }
     },
     {
       "type": "user_message",
-      "timestamp": 6730,
+      "timestamp": 7673,
       "data": {
         "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
       }
     },
     {
       "type": "trace",
-      "timestamp": 6730,
+      "timestamp": 7673,
       "data": {
-        "traceId": "trace_fcb28b16a85c4dddb27a200e2b9dbee0"
+        "traceId": "trace_b897941886c94c76878565a16d5ad802"
       }
     },
     {
       "type": "guardrail",
-      "timestamp": 6730,
+      "timestamp": 7673,
       "data": {
+        "name": "pii_and_length",
         "result": "blocked",
         "reason": "too_long"
       }
     },
     {
+      "type": "guardrail",
+      "timestamp": 7673,
+      "data": {
+        "name": "topic",
+        "result": "skipped"
+      }
+    },
+    {
       "type": "agent_reply",
-      "timestamp": 6731,
+      "timestamp": 7674,
       "data": {
         "agent": "Intake",
         "text": "Sorry, I can't process messages containing sensitive ID numbers or very long text. Please rephrase."
@@ -238,51 +321,79 @@
     },
     {
       "type": "turn_usage",
-      "timestamp": 6731,
+      "timestamp": 7674,
       "data": {
         "requests": 0,
         "inputTokens": 0,
         "cachedInputTokens": 0,
-        "outputTokens": 0
+        "outputTokens": 0,
+        "topicCheck": {
+          "requests": 0,
+          "inputTokens": 0,
+          "cachedInputTokens": 0,
+          "outputTokens": 0
+        }
       }
     },
     {
       "type": "user_message",
-      "timestamp": 6731,
+      "timestamp": 7675,
       "data": {
         "text": "Call me at 760-555-0123 about Maria"
       }
     },
     {
       "type": "trace",
-      "timestamp": 6731,
+      "timestamp": 7675,
       "data": {
-        "traceId": "trace_b036337fa1b24d0ba6ba3fa3211d4d67"
+        "traceId": "trace_87f9a619ca2947e6adb921b739a385b8"
       }
     },
     {
       "type": "guardrail",
-      "timestamp": 6731,
+      "timestamp": 7675,
       "data": {
+        "name": "pii_and_length",
         "result": "pass"
       }
     },
     {
+      "type": "guardrail",
+      "timestamp": 7675,
+      "data": {
+        "name": "topic",
+        "result": "pass",
+        "classifierReason": "The message concerns contacting the recruiting assistant about an applicant, Maria.",
+        "usage": {
+          "requests": 1,
+          "inputTokens": 187,
+          "cachedInputTokens": 0,
+          "outputTokens": 29
+        }
+      }
+    },
+    {
       "type": "agent_reply",
-      "timestamp": 8103,
+      "timestamp": 10782,
       "data": {
         "agent": "Intake",
-        "text": "I can’t place phone calls. I can help with Maria Lopez’s hiring status or interview scheduling."
+        "text": "I can’t place phone calls, but I can provide information about Maria Lopez’s application."
       }
     },
     {
       "type": "turn_usage",
-      "timestamp": 8103,
+      "timestamp": 10782,
       "data": {
-        "requests": 1,
-        "inputTokens": 683,
+        "requests": 2,
+        "inputTokens": 869,
         "cachedInputTokens": 0,
-        "outputTokens": 24
+        "outputTokens": 51,
+        "topicCheck": {
+          "requests": 1,
+          "inputTokens": 187,
+          "cachedInputTokens": 0,
+          "outputTokens": 29
+        }
       }
     }
   ]

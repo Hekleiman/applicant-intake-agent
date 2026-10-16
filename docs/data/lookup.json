@@ -1,31 +1,47 @@
 {
   "scenario": "lookup",
-  "recordedAt": "2026-10-16T22:18:50.000Z",
+  "recordedAt": "2026-10-16T22:49:17.162Z",
   "events": [
     {
       "type": "user_message",
-      "timestamp": 9,
+      "timestamp": 6,
       "data": {
         "text": "Where is Maria Lopez in the hiring process?"
       }
     },
     {
       "type": "trace",
-      "timestamp": 9,
+      "timestamp": 7,
       "data": {
-        "traceId": "trace_d06a607e8cef4e008d3f6913db10d207"
+        "traceId": "trace_947fdbfa99704ff9860b81519426977d"
       }
     },
     {
       "type": "guardrail",
-      "timestamp": 9,
+      "timestamp": 7,
       "data": {
+        "name": "pii_and_length",
         "result": "pass"
       }
     },
     {
+      "type": "guardrail",
+      "timestamp": 7,
+      "data": {
+        "name": "topic",
+        "result": "pass",
+        "classifierReason": "The message asks about an applicant's status in the hiring process.",
+        "usage": {
+          "requests": 1,
+          "inputTokens": 154,
+          "cachedInputTokens": 0,
+          "outputTokens": 29
+        }
+      }
+    },
+    {
       "type": "tool_call",
-      "timestamp": 3653,
+      "timestamp": 2161,
       "data": {
         "agent": "Intake",
         "tool": "lookup_applicant",
@@ -43,51 +59,73 @@
             "notes": "Strong calendar management background. Phone screen went well."
           }
         },
-        "durationMs": 1
+        "durationMs": 2
       }
     },
     {
       "type": "agent_reply",
-      "timestamp": 5089,
+      "timestamp": 3233,
       "data": {
         "agent": "Intake",
-        "text": "Maria Lopez is currently in the **phone screen** stage."
+        "text": "Maria Lopez is currently in the **phone screen** stage for the Executive Assistant role."
       }
     },
     {
       "type": "turn_usage",
-      "timestamp": 5089,
+      "timestamp": 3233,
       "data": {
-        "requests": 2,
-        "inputTokens": 964,
+        "requests": 3,
+        "inputTokens": 1118,
         "cachedInputTokens": 0,
-        "outputTokens": 36
+        "outputTokens": 70,
+        "topicCheck": {
+          "requests": 1,
+          "inputTokens": 154,
+          "cachedInputTokens": 0,
+          "outputTokens": 29
+        }
       }
     },
     {
       "type": "user_message",
-      "timestamp": 5089,
+      "timestamp": 3234,
       "data": {
         "text": "What stage is Sam in?"
       }
     },
     {
       "type": "trace",
-      "timestamp": 5089,
+      "timestamp": 3234,
       "data": {
-        "traceId": "trace_3385191359c1460492700d9639942905"
+        "traceId": "trace_160c36d38f264e849eeb13d30b7d2aee"
       }
     },
     {
       "type": "guardrail",
-      "timestamp": 5090,
+      "timestamp": 3234,
       "data": {
+        "name": "pii_and_length",
         "result": "pass"
       }
     },
     {
+      "type": "guardrail",
+      "timestamp": 3234,
+      "data": {
+        "name": "topic",
+        "result": "pass",
+        "classifierReason": "Asks about an applicant's hiring stage.",
+        "usage": {
+          "requests": 1,
+          "inputTokens": 176,
+          "cachedInputTokens": 0,
+          "outputTokens": 25
+        }
+      }
+    },
+    {
       "type": "tool_call",
-      "timestamp": 6618,
+      "timestamp": 5784,
       "data": {
         "agent": "Intake",
         "tool": "lookup_applicant",
@@ -101,12 +139,12 @@
             "Sam Chen"
           ]
         },
-        "durationMs": 1
+        "durationMs": 0
       }
     },
     {
       "type": "agent_reply",
-      "timestamp": 7905,
+      "timestamp": 7411,
       "data": {
         "agent": "Intake",
         "text": "Which Sam do you mean: **Sam Rivera** or **Sam Chen**?"
@@ -114,51 +152,225 @@
     },
     {
       "type": "turn_usage",
-      "timestamp": 7905,
+      "timestamp": 7411,
       "data": {
-        "requests": 2,
-        "inputTokens": 1152,
+        "requests": 3,
+        "inputTokens": 1338,
         "cachedInputTokens": 0,
-        "outputTokens": 39
+        "outputTokens": 64,
+        "topicCheck": {
+          "requests": 1,
+          "inputTokens": 176,
+          "cachedInputTokens": 0,
+          "outputTokens": 25
+        }
       }
     },
     {
       "type": "user_message",
-      "timestamp": 7905,
+      "timestamp": 7411,
+      "data": {
+        "text": "Sam Rivera"
+      }
+    },
+    {
+      "type": "trace",
+      "timestamp": 7411,
+      "data": {
+        "traceId": "trace_0547b3c5a7e94c05b238e79ac68b5da8"
+      }
+    },
+    {
+      "type": "guardrail",
+      "timestamp": 7411,
+      "data": {
+        "name": "pii_and_length",
+        "result": "pass"
+      }
+    },
+    {
+      "type": "guardrail",
+      "timestamp": 7411,
+      "data": {
+        "name": "topic",
+        "result": "pass",
+        "classifierReason": "The user is clarifying which applicant they mean.",
+        "usage": {
+          "requests": 1,
+          "inputTokens": 172,
+          "cachedInputTokens": 0,
+          "outputTokens": 26
+        }
+      }
+    },
+    {
+      "type": "tool_call",
+      "timestamp": 9716,
+      "data": {
+        "agent": "Intake",
+        "tool": "lookup_applicant",
+        "args": {
+          "query": "Sam Rivera"
+        },
+        "output": {
+          "found": true,
+          "applicant": {
+            "id": "A-1004",
+            "name": "Sam Rivera",
+            "role": "Caregiver",
+            "stage": "offer",
+            "appliedOn": "2026-08-30",
+            "notes": "Offer extended; awaiting response."
+          }
+        },
+        "durationMs": 1
+      }
+    },
+    {
+      "type": "agent_reply",
+      "timestamp": 11027,
+      "data": {
+        "agent": "Intake",
+        "text": "Sam Rivera is at the **offer** stage; the offer has been extended and is awaiting a response."
+      }
+    },
+    {
+      "type": "turn_usage",
+      "timestamp": 11027,
+      "data": {
+        "requests": 3,
+        "inputTokens": 1517,
+        "cachedInputTokens": 0,
+        "outputTokens": 71,
+        "topicCheck": {
+          "requests": 1,
+          "inputTokens": 172,
+          "cachedInputTokens": 0,
+          "outputTokens": 26
+        }
+      }
+    },
+    {
+      "type": "user_message",
+      "timestamp": 11027,
       "data": {
         "text": "Write me a poem about the ocean"
       }
     },
     {
       "type": "trace",
-      "timestamp": 7905,
+      "timestamp": 11027,
       "data": {
-        "traceId": "trace_4ee6a38a8e38403590002766e78c2c71"
+        "traceId": "trace_d25dd7b736834c34a2410b9ac72b3406"
       }
     },
     {
       "type": "guardrail",
-      "timestamp": 7905,
+      "timestamp": 11027,
       "data": {
+        "name": "pii_and_length",
         "result": "pass"
       }
     },
     {
+      "type": "guardrail",
+      "timestamp": 11027,
+      "data": {
+        "name": "topic",
+        "result": "blocked",
+        "reason": "off_topic",
+        "classifierReason": "The message requests a poem about the ocean, unrelated to recruiting or the hiring process.",
+        "usage": {
+          "requests": 1,
+          "inputTokens": 182,
+          "cachedInputTokens": 0,
+          "outputTokens": 33
+        }
+      }
+    },
+    {
       "type": "agent_reply",
-      "timestamp": 9431,
+      "timestamp": 12645,
       "data": {
         "agent": "Intake",
-        "text": "The ocean hums beneath the moon,  \nSilver waves in quiet flight;  \nTides that pull the world along,  \nDark and endless, deep with light."
+        "text": "I can only help with applicants, interviews and hiring decisions."
       }
     },
     {
       "type": "turn_usage",
-      "timestamp": 9431,
+      "timestamp": 12645,
       "data": {
         "requests": 1,
-        "inputTokens": 632,
+        "inputTokens": 182,
         "cachedInputTokens": 0,
-        "outputTokens": 37
+        "outputTokens": 33,
+        "topicCheck": {
+          "requests": 1,
+          "inputTokens": 182,
+          "cachedInputTokens": 0,
+          "outputTokens": 33
+        }
+      }
+    },
+    {
+      "type": "user_message",
+      "timestamp": 12645,
+      "data": {
+        "text": "What can you help me with?"
+      }
+    },
+    {
+      "type": "trace",
+      "timestamp": 12645,
+      "data": {
+        "traceId": "trace_a686349827dd434b8ed95ba64bb8ebfb"
+      }
+    },
+    {
+      "type": "guardrail",
+      "timestamp": 12645,
+      "data": {
+        "name": "pii_and_length",
+        "result": "pass"
+      }
+    },
+    {
+      "type": "guardrail",
+      "timestamp": 12645,
+      "data": {
+        "name": "topic",
+        "result": "pass",
+        "classifierReason": "Asks what the recruiting assistant can help with.",
+        "usage": {
+          "requests": 1,
+          "inputTokens": 181,
+          "cachedInputTokens": 0,
+          "outputTokens": 26
+        }
+      }
+    },
+    {
+      "type": "agent_reply",
+      "timestamp": 15199,
+      "data": {
+        "agent": "Intake",
+        "text": "I can help with recruiting tasks, including:\n\n- Checking an applicant’s hiring stage\n- Looking up applicant details\n- Rejecting an applicant\n- Scheduling or rescheduling interviews\n- Checking interview availability"
+      }
+    },
+    {
+      "type": "turn_usage",
+      "timestamp": 15199,
+      "data": {
+        "requests": 2,
+        "inputTokens": 932,
+        "cachedInputTokens": 0,
+        "outputTokens": 70,
+        "topicCheck": {
+          "requests": 1,
+          "inputTokens": 181,
+          "cachedInputTokens": 0,
+          "outputTokens": 26
+        }
       }
     }
   ]

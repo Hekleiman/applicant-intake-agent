@@ -2,6 +2,7 @@ import { Agent } from '@openai/agents';
 import { promptWithHandoffInstructions } from '@openai/agents-core/extensions';
 import type { AppContext } from '../context.js';
 import { piiGuardrail } from '../guardrails/piiGuardrail.js';
+import { topicGuardrail } from '../guardrails/topicGuardrail.js';
 import { lookupApplicant } from '../tools/lookupApplicant.js';
 import { rejectApplicant } from '../tools/rejectApplicant.js';
 import { agentModelSettings } from './modelSettings.js';
@@ -14,7 +15,8 @@ export const intakeAgent = new Agent<AppContext>({
   // Input guardrails only run on the first agent of a run. With triage routing every run
   // starts at Intake, so this covers all user input. If routing ever changes so a run can
   // start at the Scheduler (e.g. sticky routing), the Scheduler needs this guardrail too.
-  inputGuardrails: [piiGuardrail],
+  // Both are blocking. The topic check skips its model call for anything pii_and_length blocks.
+  inputGuardrails: [piiGuardrail, topicGuardrail],
   instructions: promptWithHandoffInstructions(
     [
       'You help a recruiter with questions about applicants in the hiring pipeline.',
