@@ -6,8 +6,5 @@ import { schedulerAgent } from './scheduler.js';
 intakeAgent.handoffs = [
   handoff(schedulerAgent, { onHandoff: () => console.log('[handoff] Intake -> Scheduler') }),
 ];
-schedulerAgent.handoffs = [
-  handoff(intakeAgent, { onHandoff: () => console.log('[handoff] Scheduler -> Intake') }),
-];
 
 export const startingAgent = intakeAgent;

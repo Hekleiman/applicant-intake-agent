@@ -17,7 +17,7 @@ export const schedulerAgent = new Agent({
       'Use lookup_applicant to get the applicant ID, then call book_interview.',
       "If a requested time isn't available, call list_open_slots and offer only the slots it returns. Never list slots from memory or from a tool's parameter options.",
       'Only confirm a booking when book_interview returns booked: true. If it returns booked: false, explain the reason in one sentence.',
-      'For anything other than scheduling, call transfer_to_intake immediately without announcing it.',
+      "If asked about an applicant's details or stage, answer using lookup_applicant. Politely decline requests unrelated to recruiting.",
     ].join('\n'),
   ),
 });

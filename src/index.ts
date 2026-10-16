@@ -4,7 +4,6 @@ import { startingAgent } from './agents/index.js';
 
 const interactive = process.stdin.isTTY === true;
 const session = new MemorySession();
-let currentAgent = startingAgent;
 const rl = createInterface({ input: process.stdin, terminal: false });
 
 const prompt = () => {
@@ -21,21 +20,24 @@ for await (const raw of rl) {
   if (line.toLowerCase() === 'exit') break;
 
   try {
-    const result = await run(currentAgent, line, { session, maxTurns: 6 });
+    // Triage routing: every message starts at Intake, which hands scheduling off one way
+    // to the Scheduler. Measured against sticky routing (start at the last agent), triage
+    // passed 21/21 checks vs 20/21, at ~21% more input tokens.
+    const result = await run(startingAgent, line, { session, maxTurns: 6 });
 
     for (const item of result.newItems) {
       console.log(`[item] ${item.type}`);
     }
-    currentAgent = result.lastAgent ?? currentAgent;
+    const lastAgent = result.lastAgent ?? startingAgent;
 
     const reply = typeof result.finalOutput === 'string' ? result.finalOutput : '';
     if (reply.trim() === '') {
-      console.log(`[warn] empty reply from ${currentAgent.name}`);
+      console.log(`[warn] empty reply from ${lastAgent.name}`);
     } else {
       console.log(`Agent: ${reply}`);
     }
 
-    console.log(`[agent] ${currentAgent.name}`);
+    console.log(`[agent] ${lastAgent.name}`);
 
     const usage = result.state.usage;
     console.log(
