@@ -1,7 +1,7 @@
-import { tool } from '@openai/agents';
+import { tool, type RunContext } from '@openai/agents';
 import { z } from 'zod';
-import { applicants } from '../data/applicants.js';
-import { openSlots } from '../data/slots.js';
+import type { AppContext } from '../context.js';
+import { storeFor } from '../data/storeFor.js';
 
 export const listOpenSlots = tool({
   name: 'list_open_slots',
@@ -10,8 +10,9 @@ export const listOpenSlots = tool({
   parameters: z.object({
     applicantId: z.string().describe('An applicant ID like A-1001, from lookup_applicant.'),
   }),
-  execute: async ({ applicantId }) => {
-    const applicant = applicants.find((a) => a.id === applicantId.trim());
+  execute: async ({ applicantId }, runContext?: RunContext<AppContext>) => {
+    const store = storeFor(runContext);
+    const applicant = await store.getApplicant(applicantId);
 
     // Same rule as book_interview: no times are offered for someone who can't be booked.
     let result;
@@ -23,7 +24,7 @@ export const listOpenSlots = tool({
         message: `${applicant.name} was rejected and can't be scheduled.`,
       };
     } else {
-      result = { openSlots: openSlots() };
+      result = { openSlots: await store.openSlots() };
     }
 
     console.log(`[tool] list_open_slots(${applicantId}) -> ${JSON.stringify(result)}`);

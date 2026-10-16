@@ -1,16 +1,8 @@
-// App-wide run context: one object created at startup and passed to every run.
+// Run context passed to every run. RunState.toString() serializes this object as it is, so it
+// holds plain data only: never a database client, a store object or a key. Tools get their data
+// through storeFor(context) instead (src/data/storeFor.ts).
+//
+// sandboxId null: the CLI, backed by the in-memory store.
+// sandboxId set: one live sandbox, backed by Supabase Postgres.
 
-export type AuditEntry = {
-  at: string; // ISO timestamp
-  applicantId: string;
-  action: 'approved' | 'declined' | 'executed';
-  reason: string;
-};
-
-export type AppContext = { audit: AuditEntry[] };
-
-export const auditEntry = (
-  applicantId: string,
-  action: AuditEntry['action'],
-  reason: string,
-): AuditEntry => ({ at: new Date().toISOString(), applicantId, action, reason });
+export type AppContext = { sandboxId: string | null };

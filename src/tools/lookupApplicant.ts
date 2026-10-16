@@ -1,6 +1,7 @@
-import { tool } from '@openai/agents';
+import { tool, type RunContext } from '@openai/agents';
 import { z } from 'zod';
-import { applicants } from '../data/applicants.js';
+import type { AppContext } from '../context.js';
+import { storeFor } from '../data/storeFor.js';
 
 export const lookupApplicant = tool({
   name: 'lookup_applicant',
@@ -11,11 +12,8 @@ export const lookupApplicant = tool({
       .string()
       .describe('An applicant ID like A-1001, or a full or partial applicant name.'),
   }),
-  execute: async ({ query }) => {
-    const q = query.trim().toLowerCase();
-    const matches = applicants.filter(
-      (a) => a.id.toLowerCase() === q || a.name.toLowerCase().includes(q),
-    );
+  execute: async ({ query }, runContext?: RunContext<AppContext>) => {
+    const matches = await storeFor(runContext).findApplicants(query);
     console.log(`[tool] lookup_applicant("${query}") -> ${matches.length} match(es)`);
 
     const [only] = matches;

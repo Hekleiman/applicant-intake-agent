@@ -16,20 +16,23 @@ import {
 import { attachRecorder, record, redactLastUserMessage } from './lib/recorder.js';
 import { takeRequestCount } from './lib/requestCounter.js';
 import { startingAgent } from './agents/index.js';
-import { auditEntry, type AppContext } from './context.js';
-import { topicGuardrail, type TopicOutputInfo, type TopicUsage } from './guardrails/topicGuardrail.js';
+import { applicantIdOf, approvalAction, declineMessage, parseArgs } from './agents/approvals.js';
+import type { AppContext } from './context.js';
+import { memoryStore } from './data/memoryStore.js';
+import type { TopicUsage } from './guardrails/topicGuardrail.js';
+import { OFF_TOPIC_REPLY, POLICY_REPLY } from './agents/replies.js';
+import { addUsage, emptyUsage, topicUsageOf } from './lib/usage.js';
+import { emitGuardrails } from './lib/guardrailEvents.js';
 
 const MAX_TURNS = 8;
-const OFF_TOPIC_REPLY = 'I can only help with applicants, interviews and hiring decisions.';
-const DECLINE_MESSAGE =
-  'A human recruiter declined this rejection. Do not retry. Tell the user it was declined and the status is unchanged.';
 
 // One group per chat session, so every turn's trace can be filtered together on the dashboard.
 const groupId = `chat_${randomUUID()}`;
 
 const interactive = process.stdin.isTTY === true;
 const session = new MemorySession();
-const appContext: AppContext = { audit: [] };
+// Plain data only: RunState.toString() serializes it. The CLI works on the in-memory store.
+const appContext: AppContext = { sandboxId: null };
 // One Runner for every run, including resumes, so its lifecycle hooks see all tool calls.
 const runner = new Runner();
 attachRecorder(runner);
@@ -51,23 +54,8 @@ type Result = RunResult<AppContext, Agent<AppContext, any>>;
 
 let turnRequests = 0;
 // Summed over the initial run and every resume: a restored run's usage starts from zero.
-const emptyUsage = () => ({ requests: 0, inputTokens: 0, cachedInputTokens: 0, outputTokens: 0 });
 let turnUsage = emptyUsage();
 let topicUsage = emptyUsage();
-
-const addUsage = (target: TopicUsage, add: TopicUsage) => {
-  target.requests += add.requests;
-  target.inputTokens += add.inputTokens;
-  target.cachedInputTokens += add.cachedInputTokens;
-  target.outputTokens += add.outputTokens;
-};
-
-// The topic check's own model call, or undefined when it was skipped or didn't run.
-const topicUsageOf = (results: InputGuardrailResult[]): TopicUsage | undefined => {
-  const result = results.find((r) => r.guardrail.name === topicGuardrail.name);
-  const info = result?.output.outputInfo as TopicOutputInfo | undefined;
-  return info?.checked ? info.usage : undefined;
-};
 
 const describeTopic = (u: TopicUsage) =>
   `topic_check requests=${u.requests} input=${u.inputTokens} output=${u.outputTokens}`;
@@ -111,10 +99,13 @@ async function resolveApprovals(result: Result): Promise<{ result: Result; resum
       console.log(
         `[approval] ${item.agent.name} wants to run ${item.name}(${args}). Approve? (y/n)`,
       );
-      let parsedArgs: unknown = args;
-      try {
-        parsedArgs = JSON.parse(args);
-      } catch {}
+      const parsedArgs = parseArgs(args);
+      const action = approvalAction(item.name, parsedArgs);
+      const applicantId = applicantIdOf(parsedArgs);
+      if (action === 'rejection') {
+        const reason = (parsedArgs as { reason?: unknown } | null)?.reason;
+        await memoryStore.addAudit(applicantId, 'rejection_requested', typeof reason === 'string' ? reason : '');
+      }
       record('approval_requested', {
         agent: item.agent.name,
         tool: item.name ?? 'unknown',
@@ -125,16 +116,12 @@ async function resolveApprovals(result: Result): Promise<{ result: Result; resum
       console.log(`[approval] answer=${answer}`);
       record('approval_decision', { decision: answer === 'y' ? 'approved' : 'declined' });
 
-      let applicantId = 'unknown';
-      try {
-        applicantId = String(JSON.parse(args).applicantId ?? 'unknown');
-      } catch {}
       if (answer === 'y') {
         result.state.approve(item);
-        appContext.audit.push(auditEntry(applicantId, 'approved', 'human approved'));
+        await memoryStore.addAudit(applicantId, 'approved', `human approved ${action}`);
       } else {
-        result.state.reject(item, { message: DECLINE_MESSAGE });
-        appContext.audit.push(auditEntry(applicantId, 'declined', 'human declined'));
+        result.state.reject(item, { message: declineMessage(action) });
+        await memoryStore.addAudit(applicantId, 'declined', `human declined ${action}`);
       }
     }
 
@@ -178,34 +165,7 @@ for (let line = await nextLine(); line !== undefined; line = await nextLine()) {
       // The blocking guardrail runs first thing in the run; its result is read afterwards and
       // recorded at this moment so the timeline stays in order.
       const runStartedAt = Date.now();
-      const recordGuardrail = (results: InputGuardrailResult[]) => {
-        for (const { guardrail, output } of results) {
-          const name = guardrail.name;
-          const reason = output.outputInfo?.reason;
-          if (name !== topicGuardrail.name) {
-            record(
-              'guardrail',
-              output.tripwireTriggered ? { name, result: 'blocked', reason } : { name, result: 'pass' },
-              runStartedAt,
-            );
-            continue;
-          }
-          const info = output.outputInfo as TopicOutputInfo;
-          record(
-            'guardrail',
-            !info.checked
-              ? { name, result: 'skipped' }
-              : {
-                  name,
-                  result: output.tripwireTriggered ? 'blocked' : 'pass',
-                  ...(reason ? { reason } : {}),
-                  classifierReason: info.classifierReason,
-                  usage: info.usage,
-                },
-            runStartedAt,
-          );
-        }
-      };
+      const recordGuardrail = (results: InputGuardrailResult[]) => emitGuardrails(record, results, runStartedAt);
       try {
         // Triage routing: every message starts at Intake, which hands scheduling off one way
         // to the Scheduler. Measured against sticky routing (start at the last agent), triage
@@ -252,7 +212,7 @@ for (let line = await nextLine(); line !== undefined; line = await nextLine()) {
           }
           const blockedReply = offTopic
             ? OFF_TOPIC_REPLY
-            : "Sorry, I can't process messages containing sensitive ID numbers or very long text. Please rephrase.";
+            : POLICY_REPLY;
           console.log(`Agent: ${blockedReply}`);
           record('agent_reply', { agent: startingAgent.name, text: blockedReply });
           console.log(`[guardrail] blocked (${reason})`);
@@ -277,7 +237,7 @@ for (let line = await nextLine(); line !== undefined; line = await nextLine()) {
 
 rl.close();
 
-for (const entry of appContext.audit) {
+for (const entry of await memoryStore.listAudit()) {
   console.log(`[audit] ${JSON.stringify(entry)}`);
 }
 

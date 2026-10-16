@@ -1,0 +1,790 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Applicant Intake Sandbox</title>
+<link rel="icon" href="data:,">
+<meta name="description" content="Try the AI recruiting assistant live on your own private copy of fictional applicants: chat with it, approve or decline its requests and watch the applicant board change.">
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --surface-2: #eef1f5;
+    --text: #1b2430;
+    --muted: #5a6575;
+    --border: #d9dee6;
+    --accent: #2457a6;
+    --accent-text: #ffffff;
+    --user-bubble: #2457a6;
+    --user-text: #ffffff;
+    --bot-bubble: #ffffff;
+    --ok: #1d7a46;
+    --warn: #a35a00;
+    --stop: #b42318;
+    --tech-bg: #f1f3f7;
+    --focus: #f0b429;
+    --highlight: #fff3c4;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12161c;
+      --surface: #1a2029;
+      --surface-2: #232b36;
+      --text: #e7ebf0;
+      --muted: #a3adbb;
+      --border: #313b48;
+      --accent: #7aa7ec;
+      --accent-text: #0e1620;
+      --user-bubble: #2f5ea8;
+      --user-text: #ffffff;
+      --bot-bubble: #232b36;
+      --ok: #5ccf8d;
+      --warn: #f0b05a;
+      --stop: #ff8a80;
+      --tech-bg: #141a22;
+      --focus: #f0b429;
+      --highlight: #4a3f14;
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 0 16px; }
+  header { padding: 28px 0 12px; display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: flex-end; justify-content: space-between; }
+  h1 { font-size: 1.7rem; line-height: 1.2; margin: 0 0 6px; letter-spacing: -0.01em; }
+  header p { margin: 0; color: var(--muted); max-width: 44rem; }
+  .header-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  a { color: var(--accent); }
+  h2 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 0 0 10px; }
+
+  .notice {
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px;
+    padding: 10px 14px; margin: 8px 0 16px; font-size: 0.93rem;
+  }
+
+  .btn {
+    font: inherit; font-size: 0.93rem; font-weight: 600;
+    border-radius: 8px; padding: 8px 14px; cursor: pointer;
+    border: 1px solid var(--accent);
+  }
+  .btn-primary { background: var(--accent); color: var(--accent-text); }
+  .btn-secondary { background: transparent; color: var(--accent); }
+  .btn-ok { background: var(--ok); border-color: var(--ok); color: #fff; }
+  .btn-stop { background: transparent; border-color: var(--stop); color: var(--stop); }
+  .btn:disabled { opacity: 0.55; cursor: default; }
+  button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+  .card-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+
+  /* Add applicant */
+  .add-form { display: grid; grid-template-columns: 1fr 1fr 2fr auto; gap: 10px; align-items: end; margin-bottom: 16px; }
+  .add-form label { display: flex; flex-direction: column; gap: 4px; font-size: 0.85rem; color: var(--muted); }
+  .add-form input {
+    font: inherit; color: var(--text); background: var(--bg);
+    border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; width: 100%;
+  }
+  .form-msg { grid-column: 1 / -1; margin: 0; font-size: 0.9rem; min-height: 1.2em; }
+  .form-msg.err { color: var(--stop); }
+  .form-msg.ok { color: var(--ok); }
+
+  /* Board */
+  .board { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
+  .column { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 10px; min-height: 120px; }
+  .column h3 { font-size: 0.85rem; margin: 0 0 8px; display: flex; justify-content: space-between; }
+  .column h3 .count { color: var(--muted); font-weight: 400; }
+  .applicant {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 10px; margin-bottom: 8px; overflow-wrap: anywhere;
+    transition: background-color 0.6s ease;
+  }
+  .applicant:last-child { margin-bottom: 0; }
+  .applicant .name { font-weight: 600; }
+  .applicant .role, .applicant .slot { font-size: 0.85rem; color: var(--muted); }
+  .applicant .slot { color: var(--accent); }
+  .applicant.changed { background: var(--highlight); border-color: var(--focus); }
+  .empty { color: var(--muted); font-size: 0.85rem; }
+
+  /* Main area */
+  .main { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 16px; align-items: start; padding-bottom: 32px; }
+  .side { display: flex; flex-direction: column; gap: 16px; }
+
+  .chat-log { display: flex; flex-direction: column; gap: 12px; min-height: 260px; max-height: 60vh; overflow-y: auto; padding: 4px 2px 8px; }
+  .bubble-row { display: flex; flex-direction: column; }
+  .bubble-row.user { align-items: flex-end; }
+  .who { font-size: 0.78rem; color: var(--muted); margin: 0 6px 3px; }
+  .bubble { max-width: 90%; padding: 10px 14px; border-radius: 16px; overflow-wrap: anywhere; }
+  .user .bubble { background: var(--user-bubble); color: var(--user-text); border-bottom-right-radius: 4px; }
+  .bot .bubble { background: var(--bot-bubble); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+  .bot.error .bubble { border-color: var(--stop); }
+  .bubble p { margin: 0; }
+  .bubble p + p, .bubble ul { margin-top: 6px; }
+  .bubble ul { margin-bottom: 0; padding-left: 20px; }
+  .system-line { color: var(--muted); font-size: 0.88rem; text-align: center; }
+  .tech-btn {
+    font: inherit; font-size: 0.8rem; background: none; border: none; color: var(--accent);
+    padding: 4px 6px; cursor: pointer; align-self: flex-start;
+  }
+  .tech {
+    font: 0.78rem/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    background: var(--tech-bg); color: var(--muted);
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 8px 10px; margin: 4px 0 0; max-width: 100%;
+    overflow-wrap: anywhere; white-space: pre-wrap; list-style: none;
+  }
+  .tech li + li { margin-top: 6px; }
+  .tech .plain { color: var(--text); font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-size: 0.85rem; }
+
+  .starters { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+  .starter {
+    font: inherit; font-size: 0.85rem; background: var(--surface-2); color: var(--text);
+    border: 1px solid var(--border); border-radius: 999px; padding: 6px 12px; cursor: pointer; text-align: left;
+  }
+  .starter:disabled { opacity: 0.55; cursor: default; }
+  .composer { display: flex; gap: 8px; }
+  .composer textarea {
+    flex: 1; font: inherit; color: var(--text); background: var(--bg);
+    border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; resize: vertical; min-height: 44px; max-height: 200px;
+  }
+  .composer-status { font-size: 0.88rem; color: var(--muted); min-height: 1.3em; margin: 6px 0 0; }
+
+  .approval-item { border: 1px solid var(--border); border-radius: 10px; padding: 12px; background: var(--surface-2); }
+  .approval-item + .approval-item { margin-top: 10px; }
+  .approval-item .what { font-weight: 600; margin: 0 0 4px; }
+  .approval-item .why { color: var(--muted); font-size: 0.9rem; margin: 0 0 10px; }
+  .approval-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .approval-panel.waiting { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent) inset; }
+
+  .activity { list-style: none; margin: 0; padding: 0; max-height: 340px; overflow-y: auto; }
+  .activity li { padding: 6px 0; border-top: 1px solid var(--border); font-size: 0.9rem; }
+  .activity li:first-child { border-top: none; }
+  .activity time { color: var(--muted); font-size: 0.8rem; margin-right: 6px; }
+
+  .gate { max-width: 460px; margin: 48px auto; }
+  .gate form { display: flex; gap: 8px; margin-top: 12px; }
+  .gate input { flex: 1; font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; }
+  .hidden { display: none !important; }
+
+  @keyframes flash { from { background: var(--highlight); } to { background: var(--surface); } }
+  .applicant.changed { animation: flash 2.4s ease-out forwards; }
+  @media (prefers-reduced-motion: reduce) { .applicant.changed { animation: none; } }
+
+  @media (max-width: 980px) {
+    .board { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .main { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 640px) {
+    h1 { font-size: 1.4rem; }
+    header { padding-top: 20px; }
+    .board { grid-template-columns: minmax(0, 1fr); }
+    .column { min-height: 0; }
+    .add-form { grid-template-columns: minmax(0, 1fr); }
+    .chat-log { max-height: none; }
+    .composer { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Applicant Intake Sandbox</h1>
+      <p>Your own private copy of a small hiring pipeline. Ask the AI assistant to look up, move, book or reject applicants. Anything consequential waits for you to approve it.</p>
+    </div>
+    <div class="header-actions">
+      <a href="index.html">Guided tour of recorded runs</a>
+      <button class="btn btn-secondary hidden" id="start-over" type="button">Start over</button>
+    </div>
+  </header>
+
+  <section class="gate card-box hidden" id="gate" aria-labelledby="gate-title">
+    <h2 id="gate-title">Access code needed</h2>
+    <p>The live sandbox calls a real AI model, so it is behind an access code. If you were sent a link, open it again; it contains the code. You can also type the code here.</p>
+    <p id="gate-error" class="form-msg err" role="alert"></p>
+    <form id="gate-form">
+      <label class="hidden" for="gate-code">Access code</label>
+      <input id="gate-code" autocomplete="off" placeholder="Access code" required>
+      <button class="btn btn-primary" type="submit">Continue</button>
+    </form>
+    <p>No code? The <a href="index.html">guided tour</a> replays real recorded conversations and needs none.</p>
+  </section>
+
+  <main id="app" class="hidden">
+    <p class="notice">Sample data only. Please don't enter real people's information. Your sandbox is deleted after 24 hours without activity.</p>
+
+    <form class="add-form card-box" id="add-form" aria-labelledby="add-title">
+      <h2 id="add-title" style="grid-column: 1 / -1; margin: 0;">Add applicant</h2>
+      <label>Name<input name="name" maxlength="80" required autocomplete="off"></label>
+      <label>Role<input name="role" maxlength="80" required autocomplete="off"></label>
+      <label>Notes (optional)<input name="notes" maxlength="500" autocomplete="off"></label>
+      <button class="btn btn-primary" type="submit">Add applicant</button>
+      <p class="form-msg" id="add-msg" role="status"></p>
+    </form>
+
+    <section aria-labelledby="board-title">
+      <h2 id="board-title">Applicant board</h2>
+      <div class="board" id="board"></div>
+    </section>
+
+    <div class="main">
+      <section class="card-box" aria-labelledby="chat-title">
+        <h2 id="chat-title">Chat with the assistant</h2>
+        <div class="chat-log" id="chat-log" aria-live="polite"></div>
+        <div class="starters" id="starters" aria-label="Example requests"></div>
+        <form class="composer" id="composer">
+          <label class="hidden" for="message">Message</label>
+          <textarea id="message" rows="2" maxlength="4000" placeholder="Ask about an applicant, book an interview, make an offer..."></textarea>
+          <button class="btn btn-primary" id="send" type="submit">Send</button>
+        </form>
+        <p class="composer-status" id="composer-status" role="status"></p>
+      </section>
+
+      <div class="side">
+        <section class="card-box approval-panel" id="approval-panel" aria-labelledby="approval-title">
+          <h2 id="approval-title">Waiting for your approval</h2>
+          <div id="approvals"><p class="empty">Nothing is waiting. Offers and rejections will appear here before anything changes.</p></div>
+        </section>
+        <section class="card-box" aria-labelledby="activity-title">
+          <h2 id="activity-title">Activity</h2>
+          <ul class="activity" id="activity"></ul>
+        </section>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // gpt-5.6-luna pricing in US dollars per million tokens (same as the guided tour).
+  var INPUT_PER_M = 0.20;
+  var CACHED_INPUT_PER_M = 0.02;
+  var OUTPUT_PER_M = 1.20;
+
+  var CODE_KEY = 'intake-demo-code';
+  var SANDBOX_KEY = 'intake-demo-sandbox';
+
+  var COLUMNS = [
+    { stage: 'applied', title: 'Applied' },
+    { stage: 'phone_screen', title: 'Phone screen' },
+    { stage: 'interview_scheduled', title: 'Interview scheduled' },
+    { stage: 'offer', title: 'Offer' },
+    { stage: 'rejected', title: 'Rejected' }
+  ];
+
+  var STARTERS = [
+    'Where is Maria Lopez in the hiring process?',
+    'Move Priya to phone screen',
+    'Book Priya for Tuesday 11:00',
+    'Make Maria Lopez an offer',
+    'Reject Devon Park, the role was filled'
+  ];
+
+  var $ = function (id) { return document.getElementById(id); };
+  var gateEl = $('gate'), appEl = $('app'), boardEl = $('board'), logEl = $('chat-log');
+  var startersEl = $('starters'), composer = $('composer'), messageEl = $('message'), sendBtn = $('send');
+  var statusEl = $('composer-status'), approvalsEl = $('approvals'), approvalPanel = $('approval-panel');
+  var activityEl = $('activity'), addForm = $('add-form'), addMsg = $('add-msg'), startOverBtn = $('start-over');
+
+  var code = null;
+  var sandboxId = null;
+  var state = null;
+  var busy = false;
+
+  // ---------- storage (may be unavailable) ----------
+
+  function load(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
+  function save(key, value) { try { if (value === null) localStorage.removeItem(key); else localStorage.setItem(key, value); } catch (e) { /* not important */ } }
+
+  // ---------- small helpers ----------
+
+  function el(tag, className, text) {
+    var node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+
+  var DAYS = { Mon: 'Monday', Tue: 'Tuesday', Wed: 'Wednesday', Thu: 'Thursday', Fri: 'Friday' };
+  function friendlySlot(slot) {
+    var m = /^(\w{3}) (\d{1,2}):(\d{2})$/.exec(String(slot || ''));
+    if (!m) return String(slot);
+    var h = Number(m[2]);
+    var h12 = h % 12 === 0 ? 12 : h % 12;
+    return (DAYS[m[1]] || m[1]) + ' at ' + h12 + ':' + m[3] + ' ' + (h >= 12 ? 'PM' : 'AM');
+  }
+  function friendlyList(items) {
+    if (items.length <= 1) return items.join('');
+    if (items.length === 2) return items[0] + ' and ' + items[1];
+    return items.slice(0, -1).join(', ') + ' and ' + items[items.length - 1];
+  }
+  var STAGES = {
+    applied: 'applied, not yet reviewed',
+    phone_screen: 'phone screen',
+    interview_scheduled: 'interview scheduled',
+    offer: 'offer extended',
+    rejected: 'no longer being considered'
+  };
+  function json(value) { return JSON.stringify(value); }
+  function nameOf(id) {
+    var a = state && state.applicants.filter(function (x) { return x.id === id; })[0];
+    return a ? a.name : id;
+  }
+
+  function renderReply(text, container) {
+    var list = null;
+    String(text).split('\n').forEach(function (line) {
+      var bullet = /^\s*[-*] (.*)$/.exec(line);
+      if (bullet) {
+        if (!list) { list = el('ul'); container.appendChild(list); }
+        var li = el('li'); appendInline(li, bullet[1]); list.appendChild(li);
+        return;
+      }
+      list = null;
+      if (line.trim() === '') return;
+      var p = el('p'); appendInline(p, line); container.appendChild(p);
+    });
+  }
+  function appendInline(parent, text) {
+    String(text).split(/(\*\*[^*]+\*\*)/).forEach(function (part) {
+      if (/^\*\*[^*]+\*\*$/.test(part)) parent.appendChild(el('strong', '', part.slice(2, -2)));
+      else if (part) parent.appendChild(document.createTextNode(part));
+    });
+  }
+
+  // ---------- plain-language technical details (same wording as the guided tour) ----------
+
+  function describeTool(d) {
+    var out = d.output || {};
+    var args = d.args || {};
+    var main;
+    if (d.tool === 'lookup_applicant') {
+      if (out.found && out.applicant) main = "Checked the applicant's file: " + out.applicant.name + ' (' + out.applicant.role + '), current stage: ' + (STAGES[out.applicant.stage] || out.applicant.stage) + '.';
+      else if (out.ambiguous) main = 'Checked the files: more than one applicant matched (' + friendlyList(out.ambiguous) + ').';
+      else main = 'Checked the files: no applicant matched that name.';
+    } else if (d.tool === 'list_open_slots') {
+      if (out.error) main = out.error === 'applicant rejected' ? 'Checked for open interview times, but this applicant is no longer being considered.' : 'Checked for open interview times, but no matching applicant was found.';
+      else main = 'Checked which interview times are still open: ' + ((out.openSlots || []).length ? friendlyList(out.openSlots.map(friendlySlot)) : 'none') + '.';
+    } else if (d.tool === 'book_interview') {
+      if (out.booked) main = 'Booked the interview: ' + out.name + ', ' + friendlySlot(out.slot) + '.';
+      else main = 'Tried to book, but ' + ({
+        'applicant rejected': 'this applicant is no longer being considered',
+        'slot taken': friendlySlot(args.slot) + ' is already taken by someone else',
+        'already booked': 'this applicant already has an interview on ' + friendlySlot(out.currentSlot),
+        'unknown applicant': 'no applicant with that record could be found'
+      }[out.reason] || 'it did not go through') + '.';
+    } else if (d.tool === 'reject_applicant') {
+      main = out.rejected ? 'Marked ' + (out.name || 'the applicant') + ' as no longer being considered, only after the recruiter approved.' : 'Tried to update the applicant, but no matching record was found.';
+    } else if (d.tool === 'advance_stage') {
+      if (out.moved) main = 'Moved ' + out.name + ' from ' + (STAGES[out.from] || out.from) + ' to ' + (STAGES[out.to] || out.to) + (out.to === 'offer' ? ', only after the recruiter approved.' : '.');
+      else main = 'Tried to move the applicant, but ' + ({
+        'unknown applicant': 'no applicant with that record could be found',
+        'applicant rejected': 'this applicant is no longer being considered',
+        'already in that stage': 'they are already in that stage',
+        'not allowed from current stage': 'that move is not allowed from their current stage (' + (STAGES[out.currentStage] || out.currentStage) + ')'
+      }[out.reason] || 'it did not go through') + '.';
+    } else {
+      main = 'Used a tool.';
+    }
+    return { plain: main, tech: d.agent + ' agent ran ' + d.tool + '\narguments: ' + json(args) + '\nresult: ' + json(out) + '\ntook ' + d.durationMs + ' ms' };
+  }
+
+  function tokens(u) {
+    return u.requests + ' model request' + (u.requests === 1 ? '' : 's') + ', ' +
+      u.inputTokens.toLocaleString('en-US') + ' input and ' + u.outputTokens.toLocaleString('en-US') + ' output tokens';
+  }
+
+  function describeAction(tool, args) {
+    if (tool === 'advance_stage' && args && args.stage === 'offer') return 'make ' + nameOf(args.applicantId) + ' an offer';
+    return 'reject ' + nameOf(args && args.applicantId);
+  }
+
+  function describeEvent(e) {
+    var d = e.data;
+    switch (e.type) {
+      case 'guardrail':
+        if (d.name === 'topic') {
+          if (d.result === 'skipped') return { plain: 'Topic check skipped: the message was already blocked.', tech: 'input guardrail topic: skipped, 0 model requests' };
+          var tech = 'input guardrail topic: ' + d.result + (d.reason ? ' (' + d.reason + ')' : '') + '\nclassifier: "' + (d.classifierReason || '') + '"' + (d.usage ? '\n' + tokens(d.usage) : '');
+          return d.result === 'blocked'
+            ? { plain: "Declined: this request has nothing to do with hiring, so the assistant didn't act on it.", tech: tech + '\nmain assistant: 0 model requests' }
+            : { plain: 'Topic check passed: the request is about hiring.', tech: tech };
+        }
+        if (d.result === 'pass') return { plain: 'Safety check passed: no sensitive numbers found.', tech: 'input guardrail pii_and_length: pass' };
+        return {
+          plain: d.reason === 'too_long'
+            ? 'Blocked: this message was far too long to handle safely, so it was never sent to the AI.'
+            : 'Blocked: this message looked like it contained a Social Security number, so it was never sent to the AI.',
+          tech: 'input guardrail pii_and_length: blocked (' + d.reason + '); 0 model requests made'
+        };
+      case 'tool_call':
+        return describeTool(d);
+      case 'handoff':
+        return { plain: 'Passed the request to the scheduling assistant.', tech: 'handoff ' + d.from + ' -> ' + d.to };
+      case 'approval_requested':
+        return { plain: 'Paused and asked a recruiter to approve: ' + describeAction(d.tool, d.args) + '.', tech: d.agent + ' agent wants to run ' + d.tool + '\narguments: ' + json(d.args) + '\nrun state saved on the server until you decide' };
+      case 'approval_decision':
+        return d.decision === 'approved'
+          ? { plain: 'Recruiter approved.', tech: 'approval: approved' + (d.tool ? ' (' + d.tool + ')' : '') + ', run state restored and resumed' }
+          : { plain: 'Recruiter declined, nothing changed.', tech: 'approval: declined' + (d.tool ? ' (' + d.tool + ')' : '') + ', run state restored and resumed' };
+      default:
+        return null;
+    }
+  }
+
+  function cost(u) {
+    var dollars = (u.inputTokens - (u.cachedInputTokens || 0)) / 1e6 * INPUT_PER_M +
+      (u.cachedInputTokens || 0) / 1e6 * CACHED_INPUT_PER_M + u.outputTokens / 1e6 * OUTPUT_PER_M;
+    return (dollars * 100).toFixed(3) + ' cents';
+  }
+
+  function techList(result) {
+    var ul = el('ul', 'tech');
+    (result.events || []).forEach(function (e) {
+      var d = describeEvent(e);
+      if (!d) return;
+      var li = el('li');
+      li.appendChild(el('div', 'plain', d.plain));
+      if (d.tech) li.appendChild(el('div', '', d.tech));
+      ul.appendChild(li);
+    });
+    var u = result.usage;
+    if (u) {
+      var main = { requests: u.requests - u.topicCheck.requests, inputTokens: u.inputTokens - u.topicCheck.inputTokens, outputTokens: u.outputTokens - u.topicCheck.outputTokens };
+      var li = el('li');
+      li.appendChild(el('div', 'plain', 'This turn: ' + tokens(u) + ', about ' + cost(u) + '.'));
+      li.appendChild(el('div', '', '  main assistant: ' + tokens(main) + '\n  topic check: ' + tokens(u.topicCheck) +
+        (u.cachedInputTokens ? '\n  cached input tokens: ' + u.cachedInputTokens.toLocaleString('en-US') : '') +
+        (result.agent ? '\nanswered by: ' + result.agent + ' agent' : '')));
+      ul.appendChild(li);
+    }
+    return ul;
+  }
+
+  // ---------- chat log ----------
+
+  function scrollLog() { logEl.scrollTop = logEl.scrollHeight; }
+
+  function addUser(text) {
+    var row = el('div', 'bubble-row user');
+    row.appendChild(el('div', 'who', 'You'));
+    var b = el('div', 'bubble'); b.appendChild(el('p', '', text)); row.appendChild(b);
+    logEl.appendChild(row); scrollLog();
+  }
+
+  function addSystem(text) { logEl.appendChild(el('p', 'system-line', text)); scrollLog(); }
+
+  function addAssistant(result) {
+    var row = el('div', 'bubble-row bot');
+    row.appendChild(el('div', 'who', 'Assistant'));
+    var b = el('div', 'bubble'); renderReply(result.reply, b); row.appendChild(b);
+    var btn = el('button', 'tech-btn', 'Show technical details');
+    btn.type = 'button';
+    btn.setAttribute('aria-expanded', 'false');
+    var list = techList(result);
+    list.classList.add('hidden');
+    btn.addEventListener('click', function () {
+      var open = list.classList.toggle('hidden') === false;
+      btn.textContent = open ? 'Hide technical details' : 'Show technical details';
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    row.appendChild(btn);
+    row.appendChild(list);
+    logEl.appendChild(row); scrollLog();
+  }
+
+  function addError(text) {
+    var row = el('div', 'bubble-row bot error');
+    row.appendChild(el('div', 'who', 'Problem'));
+    var b = el('div', 'bubble'); b.appendChild(el('p', '', text)); row.appendChild(b);
+    logEl.appendChild(row); scrollLog();
+  }
+
+  // ---------- board, approvals, activity ----------
+
+  function cardKey(a, slots) { return a.stage + '|' + (slots[a.id] || ''); }
+
+  function renderBoard(previous) {
+    var slots = {};
+    state.bookings.forEach(function (b) { slots[b.applicantId] = b.slot; });
+    var before = {};
+    if (previous) {
+      var prevSlots = {};
+      previous.bookings.forEach(function (b) { prevSlots[b.applicantId] = b.slot; });
+      previous.applicants.forEach(function (a) { before[a.id] = cardKey(a, prevSlots); });
+    }
+    boardEl.textContent = '';
+    COLUMNS.forEach(function (col) {
+      var people = state.applicants.filter(function (a) { return a.stage === col.stage; });
+      var column = el('div', 'column');
+      column.setAttribute('role', 'group');
+      column.setAttribute('aria-label', col.title + ', ' + people.length + ' applicant' + (people.length === 1 ? '' : 's'));
+      var h = el('h3', '', col.title);
+      h.appendChild(el('span', 'count', String(people.length)));
+      column.appendChild(h);
+      if (!people.length) column.appendChild(el('p', 'empty', 'Nobody here'));
+      people.forEach(function (a) {
+        var card = el('div', 'applicant');
+        card.appendChild(el('div', 'name', a.name));
+        card.appendChild(el('div', 'role', a.role));
+        if (slots[a.id]) card.appendChild(el('div', 'slot', 'Interview: ' + friendlySlot(slots[a.id])));
+        if (previous && before[a.id] !== cardKey(a, slots)) card.classList.add('changed');
+        column.appendChild(card);
+      });
+      boardEl.appendChild(column);
+    });
+  }
+
+  function renderApprovals() {
+    approvalsEl.textContent = '';
+    var pending = state.pendingApprovals || [];
+    approvalPanel.classList.toggle('waiting', pending.length > 0);
+    if (!pending.length) {
+      approvalsEl.appendChild(el('p', 'empty', 'Nothing is waiting. Offers and rejections will appear here before anything changes.'));
+      return;
+    }
+    pending.forEach(function (run) {
+      var decisions = {};
+      run.interruptions.forEach(function (item) {
+        var box = el('div', 'approval-item');
+        var what = describeAction(item.tool, item.args);
+        box.appendChild(el('p', 'what', what.charAt(0).toUpperCase() + what.slice(1)));
+        var reason = item.args && item.args.reason;
+        box.appendChild(el('p', 'why', item.action === 'offer'
+          ? 'The assistant wants to move this applicant to the Offer column.'
+          : 'Reason given: ' + (reason || 'none') + '. The applicant would move to the Rejected column.'));
+        var actions = el('div', 'approval-actions');
+        var approve = el('button', 'btn btn-ok', 'Approve');
+        var decline = el('button', 'btn btn-stop', 'Decline');
+        approve.type = decline.type = 'button';
+        function choose(value) {
+          decisions[item.callId] = value;
+          approve.disabled = decline.disabled = true;
+          (value ? approve : decline).textContent = value ? 'Approved' : 'Declined';
+          var all = run.interruptions.every(function (i) { return i.callId in decisions; });
+          if (all) submitDecisions(run, decisions);
+        }
+        approve.addEventListener('click', function () { choose(true); });
+        decline.addEventListener('click', function () { choose(false); });
+        approve.disabled = decline.disabled = busy;
+        actions.appendChild(approve); actions.appendChild(decline);
+        box.appendChild(actions);
+        approvalsEl.appendChild(box);
+      });
+    });
+  }
+
+  function describeAudit(e) {
+    var who = nameOf(e.applicantId);
+    switch (e.action) {
+      case 'added': return 'Added ' + (e.detail || who) + ' to the board.';
+      case 'stage_changed':
+        var parts = e.detail.split(' -> ');
+        return 'Moved ' + who + ' from ' + (STAGES[parts[0]] || parts[0]) + ' to ' + (STAGES[parts[1]] || parts[1]) + '.';
+      case 'booked': return 'Booked an interview for ' + who + ': ' + friendlySlot(e.detail) + '.';
+      case 'rejection_requested': return 'The assistant asked to reject ' + who + (e.detail ? ' (' + e.detail + ')' : '') + '.';
+      case 'approved': return 'A recruiter approved the ' + (/^offer/.test(e.detail) ? 'offer for ' : 'rejection of ') + who + '.';
+      case 'declined': return 'A recruiter declined the ' + (/^offer/.test(e.detail) ? 'offer for ' : 'rejection of ') + who + '.';
+      case 'rejected': return who + ' is no longer being considered' + (e.detail ? ' (' + e.detail + ')' : '') + '.';
+      default: return e.action + ' ' + who;
+    }
+  }
+
+  function renderActivity() {
+    activityEl.textContent = '';
+    var entries = (state.audit || []).slice().reverse();
+    if (!entries.length) { activityEl.appendChild(el('li', 'empty', 'Nothing has happened yet in this sandbox.')); return; }
+    entries.forEach(function (e) {
+      var li = el('li');
+      var t = el('time', '', new Date(e.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }));
+      t.dateTime = e.at;
+      li.appendChild(t);
+      li.appendChild(document.createTextNode(describeAudit(e)));
+      activityEl.appendChild(li);
+    });
+  }
+
+  function applyState(next) {
+    var previous = state;
+    state = next;
+    renderBoard(previous);
+    renderApprovals();
+    renderActivity();
+    updateControls();
+  }
+
+  function updateControls() {
+    var pending = state && state.pendingApprovals && state.pendingApprovals.length > 0;
+    var disabled = busy || pending || !state;
+    messageEl.disabled = sendBtn.disabled = disabled;
+    startersEl.querySelectorAll('button').forEach(function (b) { b.disabled = disabled; });
+    startOverBtn.disabled = busy;
+    statusEl.textContent = busy ? 'Working on it. This usually takes a few seconds...'
+      : pending ? 'Chat is paused: approve or decline the request in the "Waiting for your approval" panel first.' : '';
+  }
+
+  // ---------- API ----------
+
+  function api(method, path, body) {
+    return fetch(path, {
+      method: method,
+      headers: { 'content-type': 'application/json', 'x-demo-code': code },
+      body: body ? JSON.stringify(body) : undefined
+    }).then(function (res) {
+      return res.json().catch(function () { return {}; }).then(function (data) {
+        if (res.status === 401) { showGate('That access code was not accepted. Check the link you were given.'); throw new Error('unauthorized'); }
+        if (!res.ok) { var err = new Error(data.error || 'Something went wrong. Please try again.'); err.status = res.status; throw err; }
+        return data;
+      });
+    }, function () { throw new Error('Could not reach the server. Check your connection and try again.'); });
+  }
+
+  function setBusy(value) { busy = value; updateControls(); if (state) renderApprovals(); }
+
+  function handleTurnError(err) {
+    if (err.message === 'unauthorized') return;
+    if (err.status === 404) {
+      addError('This sandbox no longer exists, so a fresh one was started.');
+      save(SANDBOX_KEY, null); sandboxId = null; start();
+      return;
+    }
+    addError(err.message);
+    // The board may have changed (for example another tab); refresh quietly.
+    if (sandboxId) api('GET', '/api/state?sandboxId=' + encodeURIComponent(sandboxId)).then(function (d) { applyState(d.state); }, function () {});
+  }
+
+  function send(text) {
+    text = text.trim();
+    if (!text || busy) return;
+    addUser(text);
+    messageEl.value = '';
+    setBusy(true);
+    api('POST', '/api/chat', { sandboxId: sandboxId, message: text })
+      .then(function (r) { addAssistant(r); applyState(r.state); }, handleTurnError)
+      .then(function () { setBusy(false); if (!messageEl.disabled) messageEl.focus(); });
+  }
+
+  function submitDecisions(run, decisions) {
+    var list = run.interruptions.map(function (i) { return { callId: i.callId, approve: decisions[i.callId] }; });
+    var summary = run.interruptions.map(function (i) {
+      return (decisions[i.callId] ? 'Approved: ' : 'Declined: ') + describeAction(i.tool, i.args);
+    }).join('; ');
+    addSystem(summary);
+    setBusy(true);
+    api('POST', '/api/approvals', { sandboxId: sandboxId, pausedRunId: run.pausedRunId, decisions: list })
+      .then(function (r) { addAssistant(r); applyState(r.state); }, handleTurnError)
+      .then(function () { setBusy(false); });
+  }
+
+  function start() {
+    setBusy(true);
+    return api('POST', '/api/sandbox', sandboxId ? { sandboxId: sandboxId } : {})
+      .then(function (r) {
+        sandboxId = r.sandboxId;
+        save(SANDBOX_KEY, sandboxId);
+        gateEl.classList.add('hidden');
+        appEl.classList.remove('hidden');
+        startOverBtn.classList.remove('hidden');
+        if (!logEl.childNodes.length) {
+          addSystem(r.created
+            ? 'You have a fresh sandbox with five fictional applicants. Try one of the examples below, or type your own request.'
+            : 'Welcome back. This is your sandbox from before; the assistant still remembers the earlier conversation.');
+        }
+        state = null;
+        applyState(r.state);
+      }, function (err) {
+        if (err.message !== 'unauthorized') { appEl.classList.remove('hidden'); addError(err.message); }
+      })
+      .then(function () { setBusy(false); });
+  }
+
+  function showGate(message) {
+    save(CODE_KEY, null);
+    code = null;
+    appEl.classList.add('hidden');
+    startOverBtn.classList.add('hidden');
+    gateEl.classList.remove('hidden');
+    $('gate-error').textContent = message || '';
+  }
+
+  // ---------- setup ----------
+
+  STARTERS.forEach(function (text) {
+    var b = el('button', 'starter', text);
+    b.type = 'button';
+    b.addEventListener('click', function () { send(text); });
+    startersEl.appendChild(b);
+  });
+
+  composer.addEventListener('submit', function (ev) { ev.preventDefault(); send(messageEl.value); });
+  messageEl.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); send(messageEl.value); }
+  });
+
+  addForm.addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var field = function (n) { return addForm.elements.namedItem(n).value.trim(); };
+    var data = { sandboxId: sandboxId, name: field('name'), role: field('role'), notes: field('notes') };
+    if (!data.name || !data.role) return;
+    addMsg.className = 'form-msg'; addMsg.textContent = 'Adding...';
+    var submit = addForm.querySelector('button'); submit.disabled = true;
+    api('POST', '/api/applicants', data).then(function (r) {
+      addMsg.className = 'form-msg ok';
+      addMsg.textContent = 'Added ' + r.applicant.name + ' (' + r.applicant.id + ') to Applied.';
+      addForm.reset();
+      applyState(r.state);
+    }, function (err) {
+      if (err.message === 'unauthorized') return;
+      addMsg.className = 'form-msg err'; addMsg.textContent = err.message;
+    }).then(function () { submit.disabled = false; });
+  });
+
+  startOverBtn.addEventListener('click', function () {
+    if (busy) return;
+    if (!window.confirm('Start over with a fresh sandbox? Everything in this one will be deleted.')) return;
+    setBusy(true);
+    api('POST', '/api/reset', { sandboxId: sandboxId }).then(function (r) {
+      sandboxId = r.sandboxId;
+      save(SANDBOX_KEY, sandboxId);
+      logEl.textContent = '';
+      addSystem('Fresh sandbox ready, with the original five fictional applicants.');
+      state = null;
+      applyState(r.state);
+    }, handleTurnError).then(function () { setBusy(false); });
+  });
+
+  $('gate-form').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var value = $('gate-code').value.trim();
+    if (!value) return;
+    code = value;
+    save(CODE_KEY, code);
+    start();
+  });
+
+  // The code arrives once in the link, is kept in this browser, and is removed from the address bar.
+  var params = new URLSearchParams(location.search);
+  if (params.has('code')) {
+    code = params.get('code').trim();
+    save(CODE_KEY, code);
+    params.delete('code');
+    var rest = params.toString();
+    try { history.replaceState(null, '', location.pathname + (rest ? '?' + rest : '') + location.hash); } catch (e) { /* not important */ }
+  } else {
+    code = load(CODE_KEY);
+  }
+  sandboxId = load(SANDBOX_KEY);
+
+  if (code) start(); else showGate('');
+})();
+</script>
+</body>
+</html>

@@ -3,6 +3,7 @@ import { promptWithHandoffInstructions } from '@openai/agents-core/extensions';
 import type { AppContext } from '../context.js';
 import { piiGuardrail } from '../guardrails/piiGuardrail.js';
 import { topicGuardrail } from '../guardrails/topicGuardrail.js';
+import { advanceStage } from '../tools/advanceStage.js';
 import { lookupApplicant } from '../tools/lookupApplicant.js';
 import { rejectApplicant } from '../tools/rejectApplicant.js';
 import { agentModelSettings } from './modelSettings.js';
@@ -11,7 +12,7 @@ export const intakeAgent = new Agent<AppContext>({
   name: 'Intake',
   model: 'gpt-5.6-luna',
   ...agentModelSettings,
-  tools: [lookupApplicant, rejectApplicant],
+  tools: [lookupApplicant, rejectApplicant, advanceStage],
   // Input guardrails only run on the first agent of a run. With triage routing every run
   // starts at Intake, so this covers all user input. If routing ever changes so a run can
   // start at the Scheduler (e.g. sticky routing), the Scheduler needs this guardrail too.
@@ -25,6 +26,10 @@ export const intakeAgent = new Agent<AppContext>({
       'If a lookup is ambiguous, ask which person they mean. Never invent applicant details.',
       'Politely decline requests unrelated to recruiting.',
       "When the user asks to reject an applicant, look them up first, then call reject_applicant with their ID and the reason given. If a human declines the rejection, tell the user plainly that a human reviewer declined it and the applicant's status is unchanged. Do not retry.",
+      'When the user asks to move an applicant to phone screen or to make an offer, look them up first, then call advance_stage with their ID and the stage (phone_screen or offer). phone_screen is only possible from applied; offer only from phone_screen or interview_scheduled. If the tool says the move is not allowed, explain why in one sentence.',
+      'Interviews are scheduled by booking a slot (transfer to the Scheduler), and rejections go through reject_applicant; advance_stage cannot do either.',
+      "Making an offer pauses for human approval. If a human declines the offer, tell the user plainly that a human reviewer declined it and the applicant's stage is unchanged. Do not retry.",
+      'You cannot add applicants. If asked to add one, tell the user to use the Add applicant form instead.',
     ].join('\n'),
   ),
 });
