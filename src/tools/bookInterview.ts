@@ -1,9 +1,8 @@
 import { tool } from '@openai/agents';
 import { z } from 'zod';
 import { applicants } from '../data/applicants.js';
-import { SLOTS, bookings } from '../data/slots.js';
+import { SLOTS, bookings, openSlots } from '../data/slots.js';
 
-const openSlots = () => SLOTS.filter((s) => !bookings.has(s));
 const currentSlotOf = (id: string) => SLOTS.find((s) => bookings.get(s) === id);
 
 export const bookInterview = tool({

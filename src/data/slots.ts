@@ -6,3 +6,5 @@ export type Slot = (typeof SLOTS)[number];
 
 // Slot -> applicant ID. All slots start open.
 export const bookings = new Map<Slot, string>();
+
+export const openSlots = () => SLOTS.filter((s) => !bookings.has(s));

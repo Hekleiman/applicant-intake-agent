@@ -26,9 +26,15 @@ for await (const raw of rl) {
     for (const item of result.newItems) {
       console.log(`[item] ${item.type}`);
     }
-    console.log(`Agent: ${result.finalOutput}`);
-
     currentAgent = result.lastAgent ?? currentAgent;
+
+    const reply = typeof result.finalOutput === 'string' ? result.finalOutput : '';
+    if (reply.trim() === '') {
+      console.log(`[warn] empty reply from ${currentAgent.name}`);
+    } else {
+      console.log(`Agent: ${reply}`);
+    }
+
     console.log(`[agent] ${currentAgent.name}`);
 
     const usage = result.state.usage;
