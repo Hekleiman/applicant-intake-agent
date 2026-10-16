@@ -1,0 +1,6 @@
+Reject Sam Rivera, they accepted another offer
+y
+Reject Maria Lopez, not a fit
+n
+What stages are Sam Rivera and Maria Lopez in now?
+exit

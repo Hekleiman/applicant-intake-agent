@@ -1,19 +1,103 @@
 import { createInterface } from 'node:readline';
-import { InputGuardrailTripwireTriggered, MemorySession, run } from '@openai/agents';
+import {
+  InputGuardrailTripwireTriggered,
+  MaxTurnsExceededError,
+  type Agent,
+  type RunResult,
+  MemorySession,
+  RunContext,
+  RunState,
+  run,
+} from '@openai/agents';
 import { takeRequestCount } from './lib/requestCounter.js';
 import { startingAgent } from './agents/index.js';
+import { auditEntry, type AppContext } from './context.js';
+
+const MAX_TURNS = 8;
+const DECLINE_MESSAGE =
+  'A human recruiter declined this rejection. Do not retry. Tell the user it was declined and the status is unchanged.';
 
 const interactive = process.stdin.isTTY === true;
 const session = new MemorySession();
+const appContext: AppContext = { audit: [] };
 const rl = createInterface({ input: process.stdin, terminal: false });
 
-const prompt = () => {
-  if (interactive) process.stdout.write('You: ');
+// One iterator for all input, so approval answers come from the same stream as chat
+// messages (piped test files work).
+const lines = rl[Symbol.asyncIterator]();
+const nextLine = async (): Promise<string | undefined> => {
+  const next = await lines.next();
+  return next.done ? undefined : next.value.trim();
 };
 
+const prompt = (text = 'You: ') => {
+  if (interactive) process.stdout.write(text);
+};
+
+type Result = RunResult<AppContext, Agent<AppContext, any>>;
+
+let turnRequests = 0;
+
+const reportSegment = (label: string, result: Result) => {
+  for (const item of result.newItems) {
+    console.log(`[item] ${item.type}`);
+  }
+  const usage = result.state.usage;
+  console.log(
+    `[usage] ${label} requests=${usage.requests} input=${usage.inputTokens} output=${usage.outputTokens} total=${usage.totalTokens}`,
+  );
+  const requests = takeRequestCount();
+  turnRequests += requests;
+  console.log(`[http] ${label} model requests=${requests}`);
+};
+
+// Asks a human about each pending tool call, then serializes, restores and resumes the run.
+// Loops until the run finishes without interruptions.
+async function resolveApprovals(result: Result): Promise<{ result: Result; resumes: number }> {
+  let resumes = 0;
+  while (result.interruptions.length > 0) {
+    for (const item of result.interruptions) {
+      const args = item.arguments ?? '';
+      console.log(
+        `[approval] ${item.agent.name} wants to run ${item.name}(${args}). Approve? (y/n)`,
+      );
+      prompt('Approve? ');
+      const answer = (await nextLine())?.toLowerCase() === 'y' ? 'y' : 'n';
+      console.log(`[approval] answer=${answer}`);
+
+      let applicantId = 'unknown';
+      try {
+        applicantId = String(JSON.parse(args).applicantId ?? 'unknown');
+      } catch {}
+      if (answer === 'y') {
+        result.state.approve(item);
+        appContext.audit.push(auditEntry(applicantId, 'approved', 'human approved'));
+      } else {
+        result.state.reject(item, { message: DECLINE_MESSAGE });
+        appContext.audit.push(auditEntry(applicantId, 'declined', 'human declined'));
+      }
+    }
+
+    // Round-trip through a string, as if the paused run had been stored and picked up later.
+    const saved = result.state.toString();
+    const keys = Object.keys(JSON.parse(saved));
+    console.log(
+      `[state] serialized ${Buffer.byteLength(saved)} bytes, top-level keys: ${keys.join(', ')}`,
+    );
+    const restored = await RunState.fromStringWithContext(
+      startingAgent,
+      saved,
+      new RunContext(appContext),
+    );
+    result = await run(startingAgent, restored, { session, maxTurns: MAX_TURNS });
+    resumes++;
+    reportSegment(`resume ${resumes}`, result);
+  }
+  return { result, resumes };
+}
+
 prompt();
-for await (const raw of rl) {
-  const line = raw.trim();
+for (let line = await nextLine(); line !== undefined; line = await nextLine()) {
   if (line === '') {
     prompt();
     continue;
@@ -24,11 +108,15 @@ for await (const raw of rl) {
     // Triage routing: every message starts at Intake, which hands scheduling off one way
     // to the Scheduler. Measured against sticky routing (start at the last agent), triage
     // passed 21/21 checks vs 20/21, at ~21% more input tokens.
-    const result = await run(startingAgent, line, { session, maxTurns: 6 });
+    const first = await run(startingAgent, line, {
+      session,
+      context: appContext,
+      maxTurns: MAX_TURNS,
+    });
+    reportSegment('initial', first);
+    if (first.interruptions.length > 0) console.log('[paused] waiting for human approval');
 
-    for (const item of result.newItems) {
-      console.log(`[item] ${item.type}`);
-    }
+    const { result } = await resolveApprovals(first);
     const lastAgent = result.lastAgent ?? startingAgent;
 
     const reply = typeof result.finalOutput === 'string' ? result.finalOutput : '';
@@ -39,11 +127,6 @@ for await (const raw of rl) {
     }
 
     console.log(`[agent] ${lastAgent.name}`);
-
-    const usage = result.state.usage;
-    console.log(
-      `[usage] requests=${usage.requests} input=${usage.inputTokens} output=${usage.outputTokens} total=${usage.totalTokens}`,
-    );
   } catch (error) {
     if (error instanceof InputGuardrailTripwireTriggered) {
       const reason = error.result.output.outputInfo?.reason ?? 'unknown';
@@ -51,14 +134,21 @@ for await (const raw of rl) {
         "Agent: Sorry, I can't process messages containing sensitive ID numbers or very long text. Please rephrase.",
       );
       console.log(`[guardrail] blocked (${reason})`);
+    } else if (error instanceof MaxTurnsExceededError) {
+      console.log('[error] max turns exceeded');
     } else {
       console.error(`[error] ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
-  console.log(`[http] model requests this turn=${takeRequestCount()}`);
+  console.log(`[http] model requests this turn=${turnRequests + takeRequestCount()}`);
+  turnRequests = 0;
   console.log(`[session] items=${(await session.getItems()).length}`);
   prompt();
 }
 
 rl.close();
+
+for (const entry of appContext.audit) {
+  console.log(`[audit] ${JSON.stringify(entry)}`);
+}

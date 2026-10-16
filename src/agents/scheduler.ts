@@ -1,11 +1,12 @@
 import { Agent } from '@openai/agents';
 import { promptWithHandoffInstructions } from '@openai/agents-core/extensions';
+import type { AppContext } from '../context.js';
 import { bookInterview } from '../tools/bookInterview.js';
 import { listOpenSlots } from '../tools/listOpenSlots.js';
 import { lookupApplicant } from '../tools/lookupApplicant.js';
 import { agentModelSettings } from './modelSettings.js';
 
-export const schedulerAgent = new Agent({
+export const schedulerAgent = new Agent<AppContext>({
   name: 'Scheduler',
   model: 'gpt-5.6-luna',
   ...agentModelSettings,
