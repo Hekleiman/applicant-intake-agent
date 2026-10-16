@@ -4,7 +4,7 @@
 
 A small command-line recruiting assistant built on the OpenAI Agents SDK for TypeScript (`@openai/agents` 0.20.0) and `gpt-5.6-luna`. A recruiter chats with it to look up applicants, book interview slots and reject applicants. Two agents share the work: an Intake agent that answers questions and routes, and a Scheduler agent that books interviews. A code-only input guardrail stops messages that look like they contain a Social Security number (or are too long) before any model request is sent, and rejecting an applicant pauses the run until a human approves or declines. Every run can be recorded to JSON and replayed in plain language on a static page in `docs/`.
 
-Live demo: (added after deploy)
+Live demo: https://applicant-intake-agent.vercel.app
 
 ## Architecture
 
