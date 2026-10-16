@@ -1,4 +1,5 @@
 import type { InputGuardrail, InputGuardrailFunctionArgs } from '@openai/agents';
+import { record, redactLastUserMessage } from '../lib/recorder.js';
 
 const SSN_LIKE = /\b\d{3}[- ]?\d{2}[- ]?\d{4}\b/;
 const MAX_LENGTH = 2000;
@@ -35,6 +36,12 @@ export const piiGuardrail: InputGuardrail = {
     console.log(
       `[guardrail] input=${shape} newest_len=${text.length} -> ${reason ? `blocked: ${reason}` : 'pass'}`,
     );
+    if (reason) {
+      redactLastUserMessage();
+      record('guardrail', { result: 'blocked', reason });
+    } else {
+      record('guardrail', { result: 'pass' });
+    }
     return { tripwireTriggered: reason !== null, outputInfo: { reason } };
   },
 };

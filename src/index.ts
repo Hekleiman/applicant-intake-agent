@@ -12,6 +12,7 @@ import {
   run,
   withTrace,
 } from '@openai/agents';
+import { record } from './lib/recorder.js';
 import { takeRequestCount } from './lib/requestCounter.js';
 import { startingAgent } from './agents/index.js';
 import { auditEntry, type AppContext } from './context.js';
@@ -43,6 +44,8 @@ const prompt = (text = 'You: ') => {
 type Result = RunResult<AppContext, Agent<AppContext, any>>;
 
 let turnRequests = 0;
+// Summed over the initial run and every resume: a restored run's usage starts from zero.
+let turnUsage = { requests: 0, inputTokens: 0, outputTokens: 0 };
 
 const reportSegment = (label: string, result: Result) => {
   for (const item of result.newItems) {
@@ -52,6 +55,9 @@ const reportSegment = (label: string, result: Result) => {
   console.log(
     `[usage] ${label} requests=${usage.requests} input=${usage.inputTokens} output=${usage.outputTokens} total=${usage.totalTokens}`,
   );
+  turnUsage.requests += usage.requests;
+  turnUsage.inputTokens += usage.inputTokens;
+  turnUsage.outputTokens += usage.outputTokens;
   const requests = takeRequestCount();
   turnRequests += requests;
   console.log(`[http] ${label} model requests=${requests}`);
@@ -67,9 +73,19 @@ async function resolveApprovals(result: Result): Promise<{ result: Result; resum
       console.log(
         `[approval] ${item.agent.name} wants to run ${item.name}(${args}). Approve? (y/n)`,
       );
+      let parsedArgs: unknown = args;
+      try {
+        parsedArgs = JSON.parse(args);
+      } catch {}
+      record('approval_requested', {
+        agent: item.agent.name,
+        tool: item.name ?? 'unknown',
+        args: parsedArgs,
+      });
       prompt('Approve? ');
       const answer = (await nextLine())?.toLowerCase() === 'y' ? 'y' : 'n';
       console.log(`[approval] answer=${answer}`);
+      record('approval_decision', { decision: answer === 'y' ? 'approved' : 'declined' });
 
       let applicantId = 'unknown';
       try {
@@ -112,6 +128,7 @@ for (let line = await nextLine(); line !== undefined; line = await nextLine()) {
   }
   if (line.toLowerCase() === 'exit') break;
   turn++;
+  record('user_message', { text: line });
 
   // One trace per user message: the initial run, every approval resume and guardrail
   // handling all happen inside it, so a paused rejection lands in the same trace.
@@ -119,6 +136,7 @@ for (let line = await nextLine(); line !== undefined; line = await nextLine()) {
     'Recruiter chat turn',
     async (trace) => {
       console.log(`[trace] ${trace.traceId} group=${groupId}`);
+      record('trace', { traceId: trace.traceId });
       try {
         // Triage routing: every message starts at Intake, which hands scheduling off one way
         // to the Scheduler. Measured against sticky routing (start at the last agent), triage
@@ -141,15 +159,17 @@ for (let line = await nextLine(); line !== undefined; line = await nextLine()) {
           console.log(`[warn] empty reply from ${lastAgent.name}`);
         } else {
           console.log(`Agent: ${reply}`);
+          record('agent_reply', { agent: lastAgent.name, text: reply });
         }
 
         console.log(`[agent] ${lastAgent.name}`);
       } catch (error) {
         if (error instanceof InputGuardrailTripwireTriggered) {
           const reason = error.result.output.outputInfo?.reason ?? 'unknown';
-          console.log(
-            "Agent: Sorry, I can't process messages containing sensitive ID numbers or very long text. Please rephrase.",
-          );
+          const blockedReply =
+            "Sorry, I can't process messages containing sensitive ID numbers or very long text. Please rephrase.";
+          console.log(`Agent: ${blockedReply}`);
+          record('agent_reply', { agent: startingAgent.name, text: blockedReply });
           console.log(`[guardrail] blocked (${reason})`);
         } else if (error instanceof MaxTurnsExceededError) {
           console.log('[error] max turns exceeded');
@@ -158,6 +178,8 @@ for (let line = await nextLine(); line !== undefined; line = await nextLine()) {
         }
       }
 
+      record('turn_usage', turnUsage);
+      turnUsage = { requests: 0, inputTokens: 0, outputTokens: 0 };
       console.log(`[http] model requests this turn=${turnRequests + takeRequestCount()}`);
       turnRequests = 0;
       console.log(`[session] items=${(await session.getItems()).length}`);

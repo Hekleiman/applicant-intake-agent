@@ -1,0 +1,641 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Applicant Intake Assistant</title>
+<meta name="description" content="Replays of real recorded runs of an AI assistant that helps recruiters check applicants, book interviews and handle rejections.">
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --surface-2: #eef1f5;
+    --text: #1b2430;
+    --muted: #5a6575;
+    --border: #d9dee6;
+    --accent: #2457a6;
+    --accent-text: #ffffff;
+    --user-bubble: #2457a6;
+    --user-text: #ffffff;
+    --bot-bubble: #ffffff;
+    --ok: #1d7a46;
+    --warn: #a35a00;
+    --stop: #b42318;
+    --tech-bg: #f1f3f7;
+    --focus: #f0b429;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12161c;
+      --surface: #1a2029;
+      --surface-2: #232b36;
+      --text: #e7ebf0;
+      --muted: #a3adbb;
+      --border: #313b48;
+      --accent: #7aa7ec;
+      --accent-text: #0e1620;
+      --user-bubble: #2f5ea8;
+      --user-text: #ffffff;
+      --bot-bubble: #232b36;
+      --ok: #5ccf8d;
+      --warn: #f0b05a;
+      --stop: #ff8a80;
+      --tech-bg: #141a22;
+      --focus: #f0b429;
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 17px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 16px; }
+  header { padding: 40px 0 20px; }
+  h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 8px; letter-spacing: -0.01em; }
+  header p { margin: 0; color: var(--muted); max-width: 46rem; }
+
+  .tabs {
+    display: flex; gap: 6px; flex-wrap: wrap;
+    border-bottom: 1px solid var(--border);
+    margin-top: 20px;
+  }
+  .tab {
+    font: inherit; font-size: 0.97rem;
+    background: transparent; color: var(--muted);
+    border: 1px solid transparent; border-bottom: none;
+    border-radius: 8px 8px 0 0;
+    padding: 10px 14px; cursor: pointer;
+    margin-bottom: -1px;
+  }
+  .tab:hover { color: var(--text); }
+  .tab[aria-selected="true"] {
+    background: var(--surface); color: var(--text); font-weight: 600;
+    border-color: var(--border);
+  }
+  button:focus-visible, label:focus-within { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border); border-top: none;
+    border-radius: 0 0 12px 12px;
+    padding: 20px;
+  }
+  .intro { margin: 0 0 16px; color: var(--muted); }
+  .controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 20px; }
+  .btn {
+    font: inherit; font-size: 0.95rem; font-weight: 600;
+    border-radius: 8px; padding: 8px 16px; cursor: pointer;
+    border: 1px solid var(--accent);
+  }
+  .btn-primary { background: var(--accent); color: var(--accent-text); }
+  .btn-secondary { background: transparent; color: var(--accent); }
+  .btn:disabled { opacity: 0.55; cursor: default; }
+  .toggle { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; color: var(--muted); font-size: 0.95rem; cursor: pointer; border-radius: 6px; }
+  .toggle input { width: 18px; height: 18px; accent-color: var(--accent); }
+
+  .col-heads { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 8px; }
+  .col-heads h2 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 0; }
+
+  .turn {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+    padding: 16px 0; border-top: 1px solid var(--border);
+  }
+  .turn:first-of-type { border-top: none; }
+  .chat { display: flex; flex-direction: column; gap: 10px; }
+  .bubble-row { display: flex; flex-direction: column; }
+  .bubble-row.user { align-items: flex-end; }
+  .who { font-size: 0.78rem; color: var(--muted); margin: 0 6px 3px; }
+  .bubble {
+    max-width: 88%; padding: 10px 14px; border-radius: 16px;
+    overflow-wrap: anywhere;
+  }
+  .user .bubble { background: var(--user-bubble); color: var(--user-text); border-bottom-right-radius: 4px; }
+  .bot .bubble { background: var(--bot-bubble); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+  .bubble p { margin: 0; }
+  .bubble p + p, .bubble ul { margin-top: 6px; }
+  .bubble ul { margin-bottom: 0; padding-left: 20px; }
+  .note { font-size: 0.82rem; opacity: 0.85; margin-top: 4px; }
+
+  .timeline { list-style: none; margin: 0; padding: 0 0 0 4px; border-left: 2px solid var(--border); }
+  .step { position: relative; padding: 4px 0 10px 18px; }
+  .step::before {
+    content: ""; position: absolute; left: -7px; top: 11px;
+    width: 12px; height: 12px; border-radius: 50%;
+    background: var(--surface); border: 2px solid var(--muted);
+  }
+  .step.ok::before { border-color: var(--ok); background: var(--ok); }
+  .step.warn::before { border-color: var(--warn); background: var(--warn); }
+  .step.stop::before { border-color: var(--stop); background: var(--stop); }
+  .step.pause::before { border-color: var(--accent); background: var(--accent); }
+  .step-main { font-weight: 500; }
+  .step-detail { color: var(--muted); font-size: 0.92rem; }
+
+  .tech {
+    display: none;
+    font: 0.8rem/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    background: var(--tech-bg); color: var(--muted);
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 6px 8px; margin-top: 4px;
+    overflow-wrap: anywhere; white-space: pre-wrap;
+  }
+  .show-tech .tech { display: block; }
+  .turn-tech { grid-column: 1 / -1; }
+
+  .hidden { display: none !important; }
+  .fade-in { animation: fade 0.35s ease-out; }
+  @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .fade-in { animation: none; } }
+
+  .status { color: var(--muted); padding: 20px 0; }
+  footer { color: var(--muted); font-size: 0.9rem; padding: 24px 0 48px; }
+  footer p { margin: 0 0 8px; }
+  footer ul { margin: 0; padding-left: 20px; }
+
+  @media (max-width: 720px) {
+    header { padding-top: 24px; }
+    h1 { font-size: 1.55rem; }
+    .panel { padding: 16px 14px; }
+    .col-heads { display: none; }
+    .turn { grid-template-columns: 1fr; gap: 10px; }
+    .timeline::before {
+      content: "Behind the scenes"; display: block; margin: 0 0 4px 18px;
+      font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted);
+    }
+    .toggle { margin-left: 0; }
+    .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; border-bottom: none; }
+    .tab {
+      padding: 8px 10px; font-size: 0.9rem; line-height: 1.3;
+      border: 1px solid var(--border); border-radius: 8px; margin-bottom: 0;
+    }
+    .tab[aria-selected="true"] { border-color: var(--accent); color: var(--accent); }
+    .panel { border-top: 1px solid var(--border); border-radius: 12px; margin-top: 12px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Applicant Intake Assistant</h1>
+    <p>An AI assistant that helps a recruiter check on applicants, book interviews and handle rejections, with a human approving anything consequential.</p>
+  </header>
+
+  <main>
+    <div class="tabs" role="tablist" aria-label="Example conversations" id="tabs"></div>
+    <section class="panel" role="tabpanel" id="panel" aria-labelledby="">
+      <p class="intro" id="intro"></p>
+      <div class="controls">
+        <button class="btn btn-primary" id="play" type="button">Play</button>
+        <button class="btn btn-secondary" id="show-all" type="button">Show all</button>
+        <label class="toggle"><input type="checkbox" id="tech-toggle"> Show technical details</label>
+      </div>
+      <div class="col-heads" aria-hidden="true"><h2>Conversation</h2><h2>Behind the scenes</h2></div>
+      <div id="turns"><p class="status">Loading the recorded conversation...</p></div>
+    </section>
+  </main>
+
+  <footer>
+    <p>Every step on this page comes from a real recorded run. All applicants are fictional.</p>
+    <p id="cost-intro">What each conversation cost to run:</p>
+    <ul id="costs"></ul>
+  </footer>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var SCENARIOS = [
+    { id: 'lookup', tab: 'Look up an applicant',
+      intro: 'The recruiter asks where applicants are in the hiring process. The assistant checks their files, asks which person is meant when a name matches more than one applicant, and politely declines a request that has nothing to do with hiring.' },
+    { id: 'booking', tab: 'Book an interview',
+      intro: 'The recruiter asks for interviews to be booked. The assistant only confirms a booking when it really happened, and explains in plain words when a time is taken or an applicant can no longer be booked.' },
+    { id: 'guardrail', tab: 'Protect sensitive information',
+      intro: 'Some messages contain something that looks like a Social Security number, or are far too long. Those are stopped before they ever reach the AI. In this replay, the blocked numbers are shown as # signs, because they were never stored.' },
+    { id: 'approval', tab: 'Human approval',
+      intro: 'Rejecting an applicant is a serious step, so the assistant pauses and waits for a recruiter to approve or decline before anything changes.' }
+  ];
+
+  // gpt-5.6-luna pricing in US dollars per million tokens.
+  var INPUT_PER_M = 0.20;
+  var OUTPUT_PER_M = 1.20;
+  var STEP_DELAY_MS = 1100;
+
+  var tabsEl = document.getElementById('tabs');
+  var panelEl = document.getElementById('panel');
+  var introEl = document.getElementById('intro');
+  var turnsEl = document.getElementById('turns');
+  var playBtn = document.getElementById('play');
+  var showAllBtn = document.getElementById('show-all');
+  var techToggle = document.getElementById('tech-toggle');
+  var costsEl = document.getElementById('costs');
+
+  var data = {};
+  var current = null;
+  var playTimer = null;
+
+  // ---------- small helpers ----------
+
+  function el(tag, className, text) {
+    var node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+
+  var DAYS = { Mon: 'Monday', Tue: 'Tuesday', Wed: 'Wednesday', Thu: 'Thursday', Fri: 'Friday' };
+
+  // "Mon 14:00" becomes "Monday at 2:00 PM".
+  function friendlySlot(slot) {
+    var m = /^(\w{3}) (\d{1,2}):(\d{2})$/.exec(String(slot || ''));
+    if (!m) return String(slot);
+    var h = Number(m[2]);
+    var suffix = h >= 12 ? 'PM' : 'AM';
+    var h12 = h % 12 === 0 ? 12 : h % 12;
+    return (DAYS[m[1]] || m[1]) + ' at ' + h12 + ':' + m[3] + ' ' + suffix;
+  }
+
+  function friendlyList(items) {
+    if (items.length <= 1) return items.join('');
+    if (items.length === 2) return items[0] + ' and ' + items[1];
+    return items.slice(0, -1).join(', ') + ' and ' + items[items.length - 1];
+  }
+
+  var STAGES = {
+    applied: 'applied, not yet reviewed',
+    phone_screen: 'phone screen',
+    interview_scheduled: 'interview scheduled',
+    offer: 'offer extended',
+    rejected: 'no longer being considered'
+  };
+
+  function seconds(ms) { return (ms / 1000).toFixed(2) + ' s'; }
+  function json(value) { return JSON.stringify(value); }
+
+  // Minimal formatting for assistant replies: paragraphs, "- " bullet lists and **bold**.
+  function renderReply(text, container) {
+    var lines = String(text).split('\n');
+    var list = null;
+    lines.forEach(function (line) {
+      var bullet = /^\s*[-*] (.*)$/.exec(line);
+      if (bullet) {
+        if (!list) { list = el('ul'); container.appendChild(list); }
+        var li = el('li'); appendInline(li, bullet[1]); list.appendChild(li);
+        return;
+      }
+      list = null;
+      if (line.trim() === '') return;
+      var p = el('p'); appendInline(p, line); container.appendChild(p);
+    });
+  }
+
+  function appendInline(parent, text) {
+    String(text).split(/(\*\*[^*]+\*\*)/).forEach(function (part) {
+      if (/^\*\*[^*]+\*\*$/.test(part)) parent.appendChild(el('strong', '', part.slice(2, -2)));
+      else if (part) parent.appendChild(document.createTextNode(part));
+    });
+  }
+
+  // ---------- turning recorded events into plain language ----------
+
+  function describeTool(e) {
+    var d = e.data;
+    var out = d.output || {};
+    var args = d.args || {};
+    var step = { kind: 'ok', main: '', detail: '' };
+
+    if (d.tool === 'lookup_applicant') {
+      step.main = "Checked the applicant's file";
+      if (out.found && out.applicant) {
+        step.detail = 'Found ' + out.applicant.name + ' (' + out.applicant.role + '), current stage: ' +
+          (STAGES[out.applicant.stage] || out.applicant.stage) + '.';
+      } else if (out.ambiguous) {
+        step.kind = 'warn';
+        step.detail = 'More than one applicant matched: ' + friendlyList(out.ambiguous) + '.';
+      } else {
+        step.kind = 'warn';
+        step.detail = 'No applicant matched that name.';
+      }
+    } else if (d.tool === 'list_open_slots') {
+      step.main = 'Checked which interview times are still open';
+      var open = (out.openSlots || []).map(friendlySlot);
+      step.detail = open.length ? 'Still open: ' + friendlyList(open) + '.' : 'No times are open.';
+    } else if (d.tool === 'book_interview') {
+      if (out.booked) {
+        step.main = 'Booked the interview';
+        step.detail = out.name + ', ' + friendlySlot(out.slot) + '.';
+      } else {
+        step.kind = 'warn';
+        var why = {
+          'applicant rejected': 'this applicant is no longer being considered',
+          'slot taken': friendlySlot(args.slot) + ' is already taken by someone else',
+          'already booked': 'this applicant already has an interview on ' + friendlySlot(out.currentSlot),
+          'unknown applicant': 'no applicant with that record could be found'
+        }[out.reason] || 'it did not go through';
+        step.main = 'Tried to book, but ' + why;
+        if (out.openSlots && out.openSlots.length) {
+          step.detail = 'Still open: ' + friendlyList(out.openSlots.map(friendlySlot)) + '.';
+        }
+      }
+    } else if (d.tool === 'reject_applicant') {
+      if (out.rejected) {
+        step.main = 'Marked the applicant as no longer being considered';
+        step.detail = (out.name || 'The applicant') + ' was updated, only after the recruiter approved.';
+      } else {
+        step.kind = 'warn';
+        step.main = 'Tried to update the applicant, but no matching record was found';
+      }
+    } else {
+      step.main = 'Used a tool';
+    }
+
+    step.tech = d.agent + ' agent ran ' + d.tool + '\n' +
+      'arguments: ' + json(args) + '\n' +
+      'result: ' + json(out) + '\n' +
+      'took ' + d.durationMs + ' ms, at ' + seconds(e.timestamp) + ' into the run';
+    return step;
+  }
+
+  function describe(e) {
+    var d = e.data;
+    switch (e.type) {
+      case 'guardrail':
+        if (d.result === 'pass') {
+          return { kind: 'ok', main: 'Safety check passed: no sensitive numbers found',
+            tech: 'input guardrail pii_and_length: pass, at ' + seconds(e.timestamp) };
+        }
+        return {
+          kind: 'stop',
+          main: d.reason === 'too_long'
+            ? 'Blocked: this message was far too long to handle safely, so it was never sent to the AI'
+            : 'Blocked: this message looked like it contained a Social Security number, so it was never sent to the AI',
+          tech: 'input guardrail pii_and_length: blocked (' + d.reason + '), at ' + seconds(e.timestamp) + '; 0 model requests made'
+        };
+      case 'tool_call':
+        return describeTool(e);
+      case 'handoff':
+        return { kind: 'ok', main: 'Passed the request to the scheduling assistant',
+          tech: 'handoff ' + d.from + ' -> ' + d.to + ', at ' + seconds(e.timestamp) };
+      case 'approval_requested':
+        return {
+          kind: 'pause',
+          main: 'Paused and asked a recruiter to approve the rejection',
+          detail: d.args && d.args.reason ? 'Reason given: ' + d.args.reason + '.' : '',
+          tech: d.agent + ' agent wants to run ' + d.tool + '\narguments: ' + json(d.args) +
+            '\nrun state saved and resumed after the answer, at ' + seconds(e.timestamp)
+        };
+      case 'approval_decision':
+        return d.decision === 'approved'
+          ? { kind: 'ok', main: 'Recruiter approved', tech: 'approval: approved, at ' + seconds(e.timestamp) }
+          : { kind: 'stop', main: 'Recruiter declined, nothing changed', tech: 'approval: declined, at ' + seconds(e.timestamp) };
+      default:
+        return null;
+    }
+  }
+
+  // Splits a recording into turns: one recruiter message, what happened, and the reply.
+  function toTurns(events) {
+    var turns = [];
+    var turn = null;
+    events.forEach(function (e) {
+      if (e.type === 'user_message') {
+        turn = { user: e.data.text, steps: [], reply: null, agent: null, usage: null, traceId: null };
+        turns.push(turn);
+        return;
+      }
+      if (!turn) return;
+      if (e.type === 'agent_reply') { turn.reply = e.data.text; turn.agent = e.data.agent; }
+      else if (e.type === 'turn_usage') turn.usage = e.data;
+      else if (e.type === 'trace') turn.traceId = e.data.traceId;
+      else {
+        var step = describe(e);
+        if (step) turn.steps.push(step);
+      }
+    });
+    turns.forEach(function (t) {
+      var usedTools = t.steps.some(function (s) { return s.kind !== 'ok' || !/^Safety check/.test(s.main); });
+      if (!usedTools && t.reply) {
+        t.steps.push({ kind: '', main: 'Answered directly, no applicant records were needed' });
+      }
+    });
+    return turns;
+  }
+
+  function scenarioCost(events) {
+    var input = 0, output = 0;
+    events.forEach(function (e) {
+      if (e.type === 'turn_usage') { input += e.data.inputTokens; output += e.data.outputTokens; }
+    });
+    var dollars = input / 1e6 * INPUT_PER_M + output / 1e6 * OUTPUT_PER_M;
+    return { input: input, output: output, cents: dollars * 100 };
+  }
+
+  // ---------- rendering ----------
+
+  var AGENT_NAMES = { Intake: 'Intake assistant', Scheduler: 'Scheduling assistant' };
+
+  function userText(text) {
+    var MAX = 160;
+    if (text.length <= MAX) return { text: text, note: '' };
+    return { text: text.slice(0, MAX) + '...', note: 'Shortened here. The full message was ' + text.length.toLocaleString('en-US') + ' characters long.' };
+  }
+
+  // Builds every element for a scenario, each tagged with the order it appears in during Play.
+  function render(scenario) {
+    var recording = data[scenario.id];
+    turnsEl.textContent = '';
+    var revealables = [];
+
+    toTurns(recording.events).forEach(function (t, i) {
+      var row = el('article', 'turn');
+      row.setAttribute('aria-label', 'Exchange ' + (i + 1));
+      var chat = el('div', 'chat');
+      var timeline = el('ol', 'timeline');
+      timeline.setAttribute('aria-label', 'Behind the scenes');
+
+      var u = el('div', 'bubble-row user');
+      u.appendChild(el('div', 'who', 'Recruiter'));
+      var ub = el('div', 'bubble');
+      var shown = userText(t.user);
+      ub.appendChild(el('p', '', shown.text));
+      if (shown.note) ub.appendChild(el('p', 'note', shown.note));
+      u.appendChild(ub);
+      chat.appendChild(u);
+      revealables.push(u);
+
+      t.steps.forEach(function (s) {
+        var li = el('li', 'step ' + (s.kind || ''));
+        li.appendChild(el('div', 'step-main', s.main));
+        if (s.detail) li.appendChild(el('div', 'step-detail', s.detail));
+        if (s.tech) li.appendChild(el('div', 'tech', s.tech));
+        timeline.appendChild(li);
+        revealables.push(li);
+      });
+
+      if (t.reply) {
+        var b = el('div', 'bubble-row bot');
+        var who = el('div', 'who', 'Assistant');
+        var techWho = el('span', 'tech-inline');
+        who.appendChild(techWho);
+        b.appendChild(who);
+        var bb = el('div', 'bubble');
+        renderReply(t.reply, bb);
+        b.appendChild(bb);
+        b.dataset.agent = t.agent || '';
+        chat.appendChild(b);
+        revealables.push(b);
+      }
+
+      row.appendChild(chat);
+      row.appendChild(timeline);
+
+      var techLines = [];
+      if (t.agent) techLines.push('answered by: ' + t.agent + ' agent');
+      if (t.usage) {
+        techLines.push('model requests: ' + t.usage.requests + ', tokens: ' + t.usage.inputTokens.toLocaleString('en-US') +
+          ' input, ' + t.usage.outputTokens.toLocaleString('en-US') + ' output');
+      }
+      if (t.traceId) techLines.push('trace ID: ' + t.traceId);
+      if (techLines.length) {
+        var tech = el('div', 'tech turn-tech', techLines.join('\n'));
+        row.appendChild(tech);
+        revealables.push(tech);
+      }
+
+      turnsEl.appendChild(row);
+    });
+
+    updateAgentLabels();
+    return revealables;
+  }
+
+  function updateAgentLabels() {
+    var on = techToggle.checked;
+    turnsEl.querySelectorAll('.bubble-row.bot').forEach(function (row) {
+      var span = row.querySelector('.tech-inline');
+      var agent = row.dataset.agent;
+      span.textContent = on && agent ? ' (' + (AGENT_NAMES[agent] || agent) + ')' : '';
+    });
+  }
+
+  function stopPlaying() {
+    if (playTimer) { clearTimeout(playTimer); playTimer = null; }
+    playBtn.textContent = 'Play';
+    playBtn.disabled = false;
+  }
+
+  function showAll() {
+    stopPlaying();
+    if (!current) return;
+    turnsEl.querySelectorAll('.turn').forEach(function (r) { r.classList.remove('hidden'); });
+    current.items.forEach(function (n) { n.classList.remove('hidden', 'fade-in'); });
+  }
+
+  function play() {
+    if (!current) return;
+    stopPlaying();
+    var items = current.items;
+    items.forEach(function (n) { n.classList.add('hidden'); n.classList.remove('fade-in'); });
+    var rows = turnsEl.querySelectorAll('.turn');
+    rows.forEach(function (r) { r.classList.add('hidden'); });
+    playBtn.textContent = 'Playing...';
+    playBtn.disabled = true;
+    var i = 0;
+    function next() {
+      if (i >= items.length) { stopPlaying(); return; }
+      var node = items[i++];
+      var row = node.closest('.turn');
+      if (row) row.classList.remove('hidden');
+      node.classList.remove('hidden');
+      node.classList.add('fade-in');
+      // Skip the pause for technical lines while they are hidden.
+      var visible = node.offsetParent !== null;
+      if (visible && row) {
+        var r = node.getBoundingClientRect();
+        if (r.bottom > window.innerHeight || r.top < 0) node.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+      playTimer = setTimeout(next, visible ? STEP_DELAY_MS : 0);
+    }
+    next();
+  }
+
+  function select(id, focus) {
+    stopPlaying();
+    var scenario = SCENARIOS.filter(function (s) { return s.id === id; })[0] || SCENARIOS[0];
+    tabsEl.querySelectorAll('[role="tab"]').forEach(function (t) {
+      var on = t.dataset.id === scenario.id;
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+      t.tabIndex = on ? 0 : -1;
+      if (on && focus) t.focus();
+    });
+    panelEl.setAttribute('aria-labelledby', 'tab-' + scenario.id);
+    introEl.textContent = scenario.intro;
+    if (!data[scenario.id]) {
+      current = null;
+      turnsEl.textContent = '';
+      turnsEl.appendChild(el('p', 'status', 'This recording could not be loaded. If you opened this file directly, try serving the folder with a local web server instead.'));
+      return;
+    }
+    current = { scenario: scenario, items: render(scenario) };
+    try { history.replaceState(null, '', '#' + scenario.id); } catch (err) { /* not important */ }
+  }
+
+  // ---------- setup ----------
+
+  SCENARIOS.forEach(function (s, i) {
+    var b = el('button', 'tab', s.tab);
+    b.type = 'button';
+    b.id = 'tab-' + s.id;
+    b.dataset.id = s.id;
+    b.setAttribute('role', 'tab');
+    b.setAttribute('aria-controls', 'panel');
+    b.addEventListener('click', function () { select(s.id); });
+    b.addEventListener('keydown', function (ev) {
+      var dir = ev.key === 'ArrowRight' ? 1 : ev.key === 'ArrowLeft' ? -1 : 0;
+      if (!dir) return;
+      ev.preventDefault();
+      select(SCENARIOS[(i + dir + SCENARIOS.length) % SCENARIOS.length].id, true);
+    });
+    tabsEl.appendChild(b);
+  });
+
+  playBtn.addEventListener('click', play);
+  showAllBtn.addEventListener('click', showAll);
+  techToggle.addEventListener('change', function () {
+    panelEl.classList.toggle('show-tech', techToggle.checked);
+    updateAgentLabels();
+  });
+
+  Promise.all(SCENARIOS.map(function (s) {
+    return fetch('data/' + s.id + '.json')
+      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(function (json) { data[s.id] = json; })
+      .catch(function () { /* shown as a friendly message on that tab */ });
+  })).then(function () {
+    SCENARIOS.forEach(function (s) {
+      var li = el('li');
+      if (data[s.id]) {
+        var c = scenarioCost(data[s.id].events);
+        li.textContent = s.tab + ': ' + c.cents.toFixed(3) + ' cents (' +
+          c.input.toLocaleString('en-US') + ' input and ' + c.output.toLocaleString('en-US') + ' output tokens)';
+      } else {
+        li.textContent = s.tab + ': not available';
+      }
+      costsEl.appendChild(li);
+    });
+    costsEl.appendChild(el('li', '', 'Priced at $0.20 per million input tokens and $1.20 per million output tokens (gpt-5.6-luna).'));
+    var fromHash = location.hash.replace('#', '');
+    select(fromHash || SCENARIOS[0].id);
+    window.addEventListener('hashchange', function () {
+      var id = location.hash.replace('#', '');
+      if (!current || current.scenario.id !== id) select(id);
+    });
+  });
+})();
+</script>
+</body>
+</html>

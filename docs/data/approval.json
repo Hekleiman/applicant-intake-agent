@@ -1,0 +1,268 @@
+{
+  "scenario": "approval",
+  "recordedAt": "2026-10-16T21:38:50.172Z",
+  "events": [
+    {
+      "type": "user_message",
+      "timestamp": 6,
+      "data": {
+        "text": "Reject Sam Rivera, they accepted another offer"
+      }
+    },
+    {
+      "type": "trace",
+      "timestamp": 7,
+      "data": {
+        "traceId": "trace_b\u0035\u0035\u0033e\u0037\u0031\u0039\u0035\u0038e\u0034\u0034a\u0039ab\u0030f\u0039\u0032d\u0030\u0034a\u0031\u0034\u0033edb\u0030"
+      }
+    },
+    {
+      "type": "guardrail",
+      "timestamp": 10,
+      "data": {
+        "result": "pass"
+      }
+    },
+    {
+      "type": "tool_call",
+      "timestamp": 1531,
+      "data": {
+        "agent": "Intake",
+        "tool": "lookup_applicant",
+        "args": {
+          "query": "Sam Rivera"
+        },
+        "output": {
+          "found": true,
+          "applicant": {
+            "id": "A-1004",
+            "name": "Sam Rivera",
+            "role": "Caregiver",
+            "stage": "offer",
+            "appliedOn": "2026-08-30",
+            "notes": "Offer extended; awaiting response."
+          }
+        },
+        "durationMs": 0
+      }
+    },
+    {
+      "type": "approval_requested",
+      "timestamp": 2713,
+      "data": {
+        "agent": "Intake",
+        "tool": "reject_applicant",
+        "args": {
+          "applicantId": "A-1004",
+          "reason": "Accepted another offer"
+        }
+      }
+    },
+    {
+      "type": "approval_decision",
+      "timestamp": 2713,
+      "data": {
+        "decision": "approved"
+      }
+    },
+    {
+      "type": "tool_call",
+      "timestamp": 2735,
+      "data": {
+        "agent": "Intake",
+        "tool": "reject_applicant",
+        "args": {
+          "applicantId": "A-1004",
+          "reason": "Accepted another offer"
+        },
+        "output": {
+          "rejected": true,
+          "applicantId": "A-1004",
+          "name": "Sam Rivera"
+        },
+        "durationMs": 0
+      }
+    },
+    {
+      "type": "agent_reply",
+      "timestamp": 3643,
+      "data": {
+        "agent": "Intake",
+        "text": "Sam Rivera has been rejected because they accepted another offer."
+      }
+    },
+    {
+      "type": "turn_usage",
+      "timestamp": 3643,
+      "data": {
+        "requests": 3,
+        "inputTokens": 1538,
+        "outputTokens": 65
+      }
+    },
+    {
+      "type": "user_message",
+      "timestamp": 3643,
+      "data": {
+        "text": "Reject Maria Lopez, not a fit"
+      }
+    },
+    {
+      "type": "trace",
+      "timestamp": 3643,
+      "data": {
+        "traceId": "trace_ae\u0038\u0034\u0035d\u0033a\u0032\u0038ea\u0034bc\u0033\u0039fea\u0035ae\u0035\u0037\u0038\u0038\u0039bd\u0035\u0032"
+      }
+    },
+    {
+      "type": "guardrail",
+      "timestamp": 3644,
+      "data": {
+        "result": "pass"
+      }
+    },
+    {
+      "type": "tool_call",
+      "timestamp": 5106,
+      "data": {
+        "agent": "Intake",
+        "tool": "lookup_applicant",
+        "args": {
+          "query": "Maria Lopez"
+        },
+        "output": {
+          "found": true,
+          "applicant": {
+            "id": "A-1001",
+            "name": "Maria Lopez",
+            "role": "Executive Assistant",
+            "stage": "phone_screen",
+            "appliedOn": "2026-09-22",
+            "notes": "Strong calendar management background. Phone screen went well."
+          }
+        },
+        "durationMs": 1
+      }
+    },
+    {
+      "type": "approval_requested",
+      "timestamp": 6809,
+      "data": {
+        "agent": "Intake",
+        "tool": "reject_applicant",
+        "args": {
+          "applicantId": "A-1001",
+          "reason": "Not a fit"
+        }
+      }
+    },
+    {
+      "type": "approval_decision",
+      "timestamp": 6809,
+      "data": {
+        "decision": "declined"
+      }
+    },
+    {
+      "type": "agent_reply",
+      "timestamp": 8400,
+      "data": {
+        "agent": "Intake",
+        "text": "A human recruiter declined the rejection. Maria Lopez’s status is unchanged."
+      }
+    },
+    {
+      "type": "turn_usage",
+      "timestamp": 8400,
+      "data": {
+        "requests": 3,
+        "inputTokens": 2064,
+        "outputTokens": 68
+      }
+    },
+    {
+      "type": "user_message",
+      "timestamp": 8400,
+      "data": {
+        "text": "What stages are Sam Rivera and Maria Lopez in now?"
+      }
+    },
+    {
+      "type": "trace",
+      "timestamp": 8400,
+      "data": {
+        "traceId": "trace_\u0034c\u0032\u0039\u0033\u0031e\u0030cc\u0036\u0030\u0034f\u0033\u0032b\u0030\u0030\u0037\u0037\u0030\u0036\u0035a\u0037\u0034e\u0037\u0033\u0033a"
+      }
+    },
+    {
+      "type": "guardrail",
+      "timestamp": 8401,
+      "data": {
+        "result": "pass"
+      }
+    },
+    {
+      "type": "tool_call",
+      "timestamp": 9864,
+      "data": {
+        "agent": "Intake",
+        "tool": "lookup_applicant",
+        "args": {
+          "query": "Sam Rivera"
+        },
+        "output": {
+          "found": true,
+          "applicant": {
+            "id": "A-1004",
+            "name": "Sam Rivera",
+            "role": "Caregiver",
+            "stage": "rejected",
+            "appliedOn": "2026-08-30",
+            "notes": "Offer extended; awaiting response."
+          }
+        },
+        "durationMs": 0
+      }
+    },
+    {
+      "type": "tool_call",
+      "timestamp": 9864,
+      "data": {
+        "agent": "Intake",
+        "tool": "lookup_applicant",
+        "args": {
+          "query": "Maria Lopez"
+        },
+        "output": {
+          "found": true,
+          "applicant": {
+            "id": "A-1001",
+            "name": "Maria Lopez",
+            "role": "Executive Assistant",
+            "stage": "phone_screen",
+            "appliedOn": "2026-09-22",
+            "notes": "Strong calendar management background. Phone screen went well."
+          }
+        },
+        "durationMs": 0
+      }
+    },
+    {
+      "type": "agent_reply",
+      "timestamp": 11151,
+      "data": {
+        "agent": "Intake",
+        "text": "- Sam Rivera: **Rejected**\n- Maria Lopez: **Phone screen**"
+      }
+    },
+    {
+      "type": "turn_usage",
+      "timestamp": 11151,
+      "data": {
+        "requests": 2,
+        "inputTokens": 1768,
+        "outputTokens": 71
+      }
+    }
+  ]
+}

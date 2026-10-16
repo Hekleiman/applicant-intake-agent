@@ -1,0 +1,283 @@
+{
+  "scenario": "guardrail",
+  "recordedAt": "2026-10-16T21:35:15.215Z",
+  "events": [
+    {
+      "type": "user_message",
+      "timestamp": 9,
+      "data": {
+        "text": "Where is Maria Lopez in the hiring process?"
+      }
+    },
+    {
+      "type": "trace",
+      "timestamp": 10,
+      "data": {
+        "traceId": "trace_\u0031fc\u0034\u0036e\u0030b\u0036\u0037\u0032\u0032\u0034c\u0035\u0039bd\u0037\u0038\u0036\u0037d\u0031\u0031\u0033\u0032\u0036\u0030\u0037\u0030d"
+      }
+    },
+    {
+      "type": "guardrail",
+      "timestamp": 13,
+      "data": {
+        "result": "pass"
+      }
+    },
+    {
+      "type": "tool_call",
+      "timestamp": 1048,
+      "data": {
+        "agent": "Intake",
+        "tool": "lookup_applicant",
+        "args": {
+          "query": "Maria Lopez"
+        },
+        "output": {
+          "found": true,
+          "applicant": {
+            "id": "A-1001",
+            "name": "Maria Lopez",
+            "role": "Executive Assistant",
+            "stage": "phone_screen",
+            "appliedOn": "2026-09-22",
+            "notes": "Strong calendar management background. Phone screen went well."
+          }
+        },
+        "durationMs": 0
+      }
+    },
+    {
+      "type": "agent_reply",
+      "timestamp": 2188,
+      "data": {
+        "agent": "Intake",
+        "text": "Maria Lopez is currently in the **phone screen** stage for the Executive Assistant role."
+      }
+    },
+    {
+      "type": "turn_usage",
+      "timestamp": 2188,
+      "data": {
+        "requests": 2,
+        "inputTokens": 964,
+        "outputTokens": 41
+      }
+    },
+    {
+      "type": "user_message",
+      "timestamp": 2188,
+      "data": {
+        "text": "Her SSN is ###-##-####, please add it to her file"
+      }
+    },
+    {
+      "type": "trace",
+      "timestamp": 2188,
+      "data": {
+        "traceId": "trace_\u0039\u0034\u0030\u0037fe\u0030a\u0037fd\u0033\u0034\u0030e\u0031\u0038ae\u0038\u0036\u0039af\u0034\u0034\u0030\u0032\u0031\u0037\u0037\u0035"
+      }
+    },
+    {
+      "type": "guardrail",
+      "timestamp": 2189,
+      "data": {
+        "result": "blocked",
+        "reason": "ssn_like"
+      }
+    },
+    {
+      "type": "agent_reply",
+      "timestamp": 2191,
+      "data": {
+        "agent": "Intake",
+        "text": "Sorry, I can't process messages containing sensitive ID numbers or very long text. Please rephrase."
+      }
+    },
+    {
+      "type": "turn_usage",
+      "timestamp": 2191,
+      "data": {
+        "requests": 0,
+        "inputTokens": 0,
+        "outputTokens": 0
+      }
+    },
+    {
+      "type": "user_message",
+      "timestamp": 2191,
+      "data": {
+        "text": "What stage is Sam Rivera in?"
+      }
+    },
+    {
+      "type": "trace",
+      "timestamp": 2191,
+      "data": {
+        "traceId": "trace_\u0037\u0036\u0031\u0032d\u0034\u0031\u0036\u0037c\u0037e\u0034\u0030\u0032fb\u0031\u0030f\u0035bd\u0034\u0036f\u0037\u0031\u0033\u0030\u0037\u0039"
+      }
+    },
+    {
+      "type": "guardrail",
+      "timestamp": 2191,
+      "data": {
+        "result": "pass"
+      }
+    },
+    {
+      "type": "tool_call",
+      "timestamp": 3716,
+      "data": {
+        "agent": "Intake",
+        "tool": "lookup_applicant",
+        "args": {
+          "query": "Sam Rivera"
+        },
+        "output": {
+          "found": true,
+          "applicant": {
+            "id": "A-1004",
+            "name": "Sam Rivera",
+            "role": "Caregiver",
+            "stage": "offer",
+            "appliedOn": "2026-08-30",
+            "notes": "Offer extended; awaiting response."
+          }
+        },
+        "durationMs": 0
+      }
+    },
+    {
+      "type": "agent_reply",
+      "timestamp": 5015,
+      "data": {
+        "agent": "Intake",
+        "text": "Sam Rivera is in the **offer** stage. The offer has been extended and is awaiting a response."
+      }
+    },
+    {
+      "type": "turn_usage",
+      "timestamp": 5015,
+      "data": {
+        "requests": 2,
+        "inputTokens": 1199,
+        "outputTokens": 45
+      }
+    },
+    {
+      "type": "user_message",
+      "timestamp": 5015,
+      "data": {
+        "text": "My number is ### ## ####"
+      }
+    },
+    {
+      "type": "trace",
+      "timestamp": 5015,
+      "data": {
+        "traceId": "trace_\u0030\u0038\u0033\u0034\u0037b\u0033\u0036a\u0034\u0033\u0031\u0034\u0039a\u0037a\u0033\u0035\u0038\u0030\u0038\u0035ca\u0031\u0038\u0035\u0034\u0031\u0035\u0030"
+      }
+    },
+    {
+      "type": "guardrail",
+      "timestamp": 5016,
+      "data": {
+        "result": "blocked",
+        "reason": "ssn_like"
+      }
+    },
+    {
+      "type": "agent_reply",
+      "timestamp": 5016,
+      "data": {
+        "agent": "Intake",
+        "text": "Sorry, I can't process messages containing sensitive ID numbers or very long text. Please rephrase."
+      }
+    },
+    {
+      "type": "turn_usage",
+      "timestamp": 5016,
+      "data": {
+        "requests": 0,
+        "inputTokens": 0,
+        "outputTokens": 0
+      }
+    },
+    {
+      "type": "user_message",
+      "timestamp": 5017,
+      "data": {
+        "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      }
+    },
+    {
+      "type": "trace",
+      "timestamp": 5017,
+      "data": {
+        "traceId": "trace_a\u0033d\u0038a\u0038\u0038f\u0034\u0037\u0034\u0037\u0034\u0038\u0036\u0031\u0039d\u0039\u0034\u0031e\u0036\u0034\u0037\u0036c\u0034a\u0034dc"
+      }
+    },
+    {
+      "type": "guardrail",
+      "timestamp": 5017,
+      "data": {
+        "result": "blocked",
+        "reason": "too_long"
+      }
+    },
+    {
+      "type": "agent_reply",
+      "timestamp": 5017,
+      "data": {
+        "agent": "Intake",
+        "text": "Sorry, I can't process messages containing sensitive ID numbers or very long text. Please rephrase."
+      }
+    },
+    {
+      "type": "turn_usage",
+      "timestamp": 5017,
+      "data": {
+        "requests": 0,
+        "inputTokens": 0,
+        "outputTokens": 0
+      }
+    },
+    {
+      "type": "user_message",
+      "timestamp": 5017,
+      "data": {
+        "text": "Call me at 760-555-0123 about Maria"
+      }
+    },
+    {
+      "type": "trace",
+      "timestamp": 5017,
+      "data": {
+        "traceId": "trace_\u0035\u0031\u0038\u0033\u0038da\u0036\u0039\u0034\u0035\u0039\u0034bb\u0037\u0039c\u0036\u0036f\u0037\u0034\u0031bbc\u0036\u0034b\u0035\u0034"
+      }
+    },
+    {
+      "type": "guardrail",
+      "timestamp": 5018,
+      "data": {
+        "result": "pass"
+      }
+    },
+    {
+      "type": "agent_reply",
+      "timestamp": 6178,
+      "data": {
+        "agent": "Intake",
+        "text": "I can only assist with recruiting and hiring-pipeline requests."
+      }
+    },
+    {
+      "type": "turn_usage",
+      "timestamp": 6178,
+      "data": {
+        "requests": 1,
+        "inputTokens": 683,
+        "outputTokens": 16
+      }
+    }
+  ]
+}

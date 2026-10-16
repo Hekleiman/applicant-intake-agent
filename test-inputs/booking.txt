@@ -1,0 +1,5 @@
+Book Maria Lopez for Mon 10:00
+What about Tuesday at 3pm for Sam Chen?
+Book Sam Chen for Tue 11:00
+Book Sam Rivera for Mon 10:00
+exit
