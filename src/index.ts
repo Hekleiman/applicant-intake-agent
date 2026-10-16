@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { createInterface } from 'node:readline';
 import {
   InputGuardrailTripwireTriggered,
@@ -7,7 +8,9 @@ import {
   MemorySession,
   RunContext,
   RunState,
+  getGlobalTraceProvider,
   run,
+  withTrace,
 } from '@openai/agents';
 import { takeRequestCount } from './lib/requestCounter.js';
 import { startingAgent } from './agents/index.js';
@@ -16,6 +19,9 @@ import { auditEntry, type AppContext } from './context.js';
 const MAX_TURNS = 8;
 const DECLINE_MESSAGE =
   'A human recruiter declined this rejection. Do not retry. Tell the user it was declined and the status is unchanged.';
+
+// One group per chat session, so every turn's trace can be filtered together on the dashboard.
+const groupId = `chat_${randomUUID()}`;
 
 const interactive = process.stdin.isTTY === true;
 const session = new MemorySession();
@@ -96,6 +102,8 @@ async function resolveApprovals(result: Result): Promise<{ result: Result; resum
   return { result, resumes };
 }
 
+let turn = 0;
+
 prompt();
 for (let line = await nextLine(); line !== undefined; line = await nextLine()) {
   if (line === '') {
@@ -103,47 +111,59 @@ for (let line = await nextLine(); line !== undefined; line = await nextLine()) {
     continue;
   }
   if (line.toLowerCase() === 'exit') break;
+  turn++;
 
-  try {
-    // Triage routing: every message starts at Intake, which hands scheduling off one way
-    // to the Scheduler. Measured against sticky routing (start at the last agent), triage
-    // passed 21/21 checks vs 20/21, at ~21% more input tokens.
-    const first = await run(startingAgent, line, {
-      session,
-      context: appContext,
-      maxTurns: MAX_TURNS,
-    });
-    reportSegment('initial', first);
-    if (first.interruptions.length > 0) console.log('[paused] waiting for human approval');
+  // One trace per user message: the initial run, every approval resume and guardrail
+  // handling all happen inside it, so a paused rejection lands in the same trace.
+  await withTrace(
+    'Recruiter chat turn',
+    async (trace) => {
+      console.log(`[trace] ${trace.traceId} group=${groupId}`);
+      try {
+        // Triage routing: every message starts at Intake, which hands scheduling off one way
+        // to the Scheduler. Measured against sticky routing (start at the last agent), triage
+        // passed 21/21 checks vs 20/21, at ~21% more input tokens.
+        // traceIncludeSensitiveData is left at its default (true): traces contain message text and
+        // tool inputs and outputs. With real applicant data, set it to false or redact first.
+        const first = await run(startingAgent, line, {
+          session,
+          context: appContext,
+          maxTurns: MAX_TURNS,
+        });
+        reportSegment('initial', first);
+        if (first.interruptions.length > 0) console.log('[paused] waiting for human approval');
 
-    const { result } = await resolveApprovals(first);
-    const lastAgent = result.lastAgent ?? startingAgent;
+        const { result } = await resolveApprovals(first);
+        const lastAgent = result.lastAgent ?? startingAgent;
 
-    const reply = typeof result.finalOutput === 'string' ? result.finalOutput : '';
-    if (reply.trim() === '') {
-      console.log(`[warn] empty reply from ${lastAgent.name}`);
-    } else {
-      console.log(`Agent: ${reply}`);
-    }
+        const reply = typeof result.finalOutput === 'string' ? result.finalOutput : '';
+        if (reply.trim() === '') {
+          console.log(`[warn] empty reply from ${lastAgent.name}`);
+        } else {
+          console.log(`Agent: ${reply}`);
+        }
 
-    console.log(`[agent] ${lastAgent.name}`);
-  } catch (error) {
-    if (error instanceof InputGuardrailTripwireTriggered) {
-      const reason = error.result.output.outputInfo?.reason ?? 'unknown';
-      console.log(
-        "Agent: Sorry, I can't process messages containing sensitive ID numbers or very long text. Please rephrase.",
-      );
-      console.log(`[guardrail] blocked (${reason})`);
-    } else if (error instanceof MaxTurnsExceededError) {
-      console.log('[error] max turns exceeded');
-    } else {
-      console.error(`[error] ${error instanceof Error ? error.message : String(error)}`);
-    }
-  }
+        console.log(`[agent] ${lastAgent.name}`);
+      } catch (error) {
+        if (error instanceof InputGuardrailTripwireTriggered) {
+          const reason = error.result.output.outputInfo?.reason ?? 'unknown';
+          console.log(
+            "Agent: Sorry, I can't process messages containing sensitive ID numbers or very long text. Please rephrase.",
+          );
+          console.log(`[guardrail] blocked (${reason})`);
+        } else if (error instanceof MaxTurnsExceededError) {
+          console.log('[error] max turns exceeded');
+        } else {
+          console.error(`[error] ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
 
-  console.log(`[http] model requests this turn=${turnRequests + takeRequestCount()}`);
-  turnRequests = 0;
-  console.log(`[session] items=${(await session.getItems()).length}`);
+      console.log(`[http] model requests this turn=${turnRequests + takeRequestCount()}`);
+      turnRequests = 0;
+      console.log(`[session] items=${(await session.getItems()).length}`);
+    },
+    { groupId, metadata: { turn: String(turn) } },
+  );
   prompt();
 }
 
@@ -152,3 +172,6 @@ rl.close();
 for (const entry of appContext.audit) {
   console.log(`[audit] ${JSON.stringify(entry)}`);
 }
+
+// Upload buffered traces before exit; piped runs otherwise end before the batch is sent.
+await getGlobalTraceProvider().forceFlush();
