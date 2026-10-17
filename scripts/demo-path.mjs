@@ -6,7 +6,7 @@
 //   node --env-file=.env scripts/demo-path.mjs http://localhost:3000
 //
 // Needs DEMO_PASSCODE. With SUPABASE_URL and SUPABASE_SECRET_KEY it also deletes its sandbox at
-// the end. Makes real model calls (about 20 requests, all counted toward the limits).
+// the end. Makes real model calls (about 24 requests, all counted toward the limits).
 import { readFileSync } from 'node:fs';
 import { createClient } from '@supabase/supabase-js';
 
@@ -189,6 +189,23 @@ assert('b: after the starters Maria is in Offer, Priya in Interview scheduled, D
     (r.json?.events ?? []).some((e) => e.type === 'tool_call' && e.data.tool === 'get_screening' && e.data.output?.found) &&
       stageOf('Casey Lin') === 'applied',
     JSON.stringify(r.json?.events?.map((e) => e.data?.tool ?? e.type)));
+}
+
+// c2. Role questions: answered from get_role_requirements, with only the roles the state lists.
+{
+  const names = (state.roles ?? []).map((r) => r.name);
+  const usedTool = (r) => (r.json?.events ?? []).filter((e) => e.type === 'tool_call' && e.data.tool === 'get_role_requirements');
+  const before = JSON.stringify(state.applicants.map((a) => [a.id, a.stage]));
+  const r = await chat('c2', 'What does the Caregiver role require?');
+  assert('c2: the Caregiver requirements come from get_role_requirements and nothing changed',
+    usedTool(r).some((e) => e.data.output?.role === 'Caregiver' && e.data.output?.general === false) &&
+      JSON.stringify(state.applicants.map((a) => [a.id, a.stage])) === before,
+    JSON.stringify(r.json?.events?.map((e) => e.data?.tool ?? e.type)));
+  const o = await chat('c2', 'What roles are open?');
+  assert(`c2: the open roles come from get_role_requirements and the reply names all ${names.length} (${names.join(', ')})`,
+    names.length === 4 && usedTool(o).length > 0 && names.every((n) => (o.json?.reply ?? '').toLowerCase().includes(n.toLowerCase())) &&
+      JSON.stringify(state.applicants.map((a) => [a.id, a.stage])) === before,
+    JSON.stringify(o.json?.events?.map((e) => e.data?.tool ?? e.type)));
 }
 
 // d. Priya to phone screen and booked (the starters already did both, so this checks that the

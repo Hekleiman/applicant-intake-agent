@@ -128,6 +128,20 @@ assert('Devon Park starts in Interview scheduled with a booking for Wednesday 09
   await db.from('sandboxes').delete().eq('id', old);
 }
 
+// 2c. The state carries the open roles and the general criteria from src/data/roles.ts.
+const OPEN_ROLE_NAMES = ['Executive Assistant', 'Recruiter', 'Bookkeeper', 'Caregiver'];
+{
+  const st = created.json.state;
+  const roles = st.roles ?? [];
+  const complete = roles.every((r) => typeof r.name === 'string' && r.mustHave?.length >= 1 && r.niceToHave?.length >= 1 &&
+    r.mustHave.every((t) => typeof t === 'string') && r.niceToHave.every((t) => typeof t === 'string'));
+  assert(`the state lists the four open roles with their criteria (${roles.map((r) => `${r.name}: ${r.mustHave?.length} must, ${r.niceToHave?.length} nice`).join('; ')}) plus the general criteria`,
+    JSON.stringify(roles.map((r) => r.name)) === JSON.stringify(OPEN_ROLE_NAMES) && complete &&
+      roles.find((r) => r.name === 'Caregiver')?.mustHave.some((t) => /CPR/.test(t)) &&
+      st.generalCriteria?.mustHave?.length >= 1 && st.generalCriteria?.niceToHave?.length >= 1,
+    JSON.stringify({ roles, general: st.generalCriteria }));
+}
+
 // 3. Add applicants
 {
   const r = await call('POST', '/api/applicants', { sandboxId, name: 'Jordan Lee', role: 'Executive Assistant', notes: 'Added by the smoke test.' });
@@ -332,6 +346,49 @@ const LONG_NAME = 'Avery Quinn';
       applicant(r, casey.name)?.stage === 'applied' && !r.json.pendingApproval,
     brief(r));
   lastState = r.json?.state;
+}
+
+// 9e. Roles: a listed role typed in any case is saved under its canonical name and screened against
+// that role; anything else is saved as typed and screened with the general criteria.
+{
+  const r = await call('POST', '/api/applicants', { sandboxId, name: 'Riley Shaw', role: 'caregiver', resume: sampleFile('caregiver-strong', 'txt') });
+  if (r.status === 200) loggedRequests++;
+  const s = r.json?.state?.screenings?.[r.json?.applicant?.id]?.result;
+  assert(`adding with role "caregiver" saves "${r.json?.applicant?.role}" and screens against the Caregiver criteria (screening role ${s?.role}, generalCriteria ${s?.generalCriteria})`,
+    r.status === 200 && r.json.applicant.role === 'Caregiver' && applicant(r, 'Riley Shaw')?.role === 'Caregiver' &&
+      s?.role === 'Caregiver' && s.generalCriteria === false,
+    `status=${r.status} error=${r.json?.error} role=${r.json?.applicant?.role} screening=${JSON.stringify(s)?.slice(0, 200)}`);
+
+  const o = await call('POST', '/api/applicants', { sandboxId, name: 'Quinn Harper', role: 'Office Manager', resume: sampleFile('executive-assistant-weak', 'txt') });
+  if (o.status === 200) loggedRequests++;
+  const g = o.json?.state?.screenings?.[o.json?.applicant?.id]?.result;
+  assert(`adding with role "Office Manager" saves it as typed and screens with the general criteria (screening role ${g?.role}, generalCriteria ${g?.generalCriteria})`,
+    o.status === 200 && o.json.applicant.role === 'Office Manager' && g?.role === 'Office Manager' && g.generalCriteria === true,
+    `status=${o.status} error=${o.json?.error} screening=${JSON.stringify(g)?.slice(0, 200)}`);
+}
+
+// 9f. Role questions in chat use get_role_requirements and change nothing.
+{
+  const snapshot = (st) => JSON.stringify({ a: st?.applicants?.map((a) => [a.id, a.role, a.stage]), b: st?.bookings, n: st?.audit?.length });
+  const before = snapshot((await call('GET', `/api/state?sandboxId=${sandboxId}`)).json?.state);
+
+  const r = await chat(sandboxId, 'What does the Caregiver role require?');
+  const out = toolCalls(r, 'get_role_requirements').map((e) => e.data.output).find((o) => o?.role === 'Caregiver');
+  assert('"What does the Caregiver role require?" uses get_role_requirements (Caregiver, not general) and changes nothing',
+    r.status === 200 && out && out.general === false && /CPR/i.test(r.json.reply) && !r.json.pendingApproval &&
+      snapshot(r.json.state) === before,
+    brief(r));
+  console.log(`      reply: ${JSON.stringify(r.json?.reply)}`);
+
+  const o = await chat(sandboxId, 'What roles are open?');
+  const used = toolCalls(o, 'get_role_requirements');
+  const reply = o.json?.reply ?? '';
+  const INVENTED = /\b(software|engineer|developer|nurse|accountant|office manager|marketing|sales|designer|analyst|receptionist|administrative assistant|project manager|customer service)\b/i;
+  assert('"What roles are open?" uses get_role_requirements and lists exactly the four roles, no invented ones',
+    o.status === 200 && used.length > 0 && OPEN_ROLE_NAMES.every((n) => reply.toLowerCase().includes(n.toLowerCase())) &&
+      !INVENTED.test(reply) && !o.json.pendingApproval && snapshot(o.json.state) === before,
+    brief(o));
+  console.log(`      reply: ${JSON.stringify(reply)}`);
 }
 
 // 10. Isolation

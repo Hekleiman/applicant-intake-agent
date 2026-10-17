@@ -88,7 +88,7 @@
   .btn-ok { background: var(--ok); border-color: var(--ok); color: #fff; }
   .btn-stop { background: transparent; border-color: var(--stop); color: var(--stop); }
   .btn:disabled { opacity: 0.55; cursor: default; }
-  button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+  button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible, a:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 
   .card-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
 
@@ -100,10 +100,24 @@
   .samples { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 0.85rem; color: var(--muted); }
   .samples button { font: inherit; font-size: 0.82rem; background: var(--surface-2); color: var(--text); border: 1px solid var(--border); border-radius: 999px; padding: 4px 10px; cursor: pointer; }
   .add-form label { display: flex; flex-direction: column; gap: 4px; font-size: 0.85rem; color: var(--muted); }
-  .add-form input {
+  .add-form input, .add-form select {
     font: inherit; color: var(--text); background: var(--bg);
     border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; width: 100%;
   }
+  .add-form .role-field { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+
+  /* Open roles: plain information about what resumes are screened against */
+  .roles-box { margin-bottom: 16px; }
+  .roles-box h2 { margin-bottom: 4px; }
+  .roles-note { margin: 0 0 10px; font-size: 0.88rem; color: var(--muted); }
+  .roles-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; align-items: start; }
+  .role-item { border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); min-width: 0; }
+  .role-item summary { cursor: pointer; padding: 6px 10px; font-size: 0.92rem; font-weight: 600; }
+  .role-item.general summary { font-weight: 400; color: var(--muted); }
+  .role-item .crit { padding: 0 10px 8px; font-size: 0.85rem; overflow-wrap: anywhere; }
+  .role-item h3 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 6px 0 2px; }
+  .role-item ul { margin: 0; padding-left: 18px; }
+  .role-item li + li { margin-top: 2px; }
   .form-msg { grid-column: 1 / -1; margin: 0; font-size: 0.9rem; min-height: 1.2em; }
   .form-msg.err { color: var(--stop); }
   .form-msg.ok { color: var(--ok); }
@@ -265,7 +279,10 @@
     <form class="add-form card-box" id="add-form" aria-labelledby="add-title">
       <h2 id="add-title" style="grid-column: 1 / -1; margin: 0;">Add applicant</h2>
       <label>Name<input name="name" maxlength="80" required autocomplete="off"></label>
-      <label>Role<input name="role" maxlength="80" required autocomplete="off"></label>
+      <div class="role-field">
+        <label>Role<select name="role" id="role-select" required><option value="">Choose a role</option></select></label>
+        <label class="hidden" id="role-other-field">Job title<input name="roleOther" id="role-other" maxlength="80" autocomplete="off"></label>
+      </div>
       <label>Notes (optional)<input name="notes" maxlength="500" autocomplete="off"></label>
       <button class="btn btn-primary" type="submit">Add applicant</button>
       <div class="resume-row">
@@ -277,6 +294,12 @@
       </div>
       <p class="form-msg" id="add-msg" role="status"></p>
     </form>
+
+    <section class="card-box roles-box" aria-labelledby="roles-title">
+      <h2 id="roles-title">Open roles</h2>
+      <p class="roles-note">Resumes are screened against these. Any other role is screened against general criteria.</p>
+      <div class="roles-list" id="roles-list"></div>
+    </section>
 
     <section aria-labelledby="board-title">
       <h2 id="board-title">Applicant board</h2>
@@ -356,6 +379,8 @@
   var statusEl = $('composer-status'), approvalsEl = $('approvals'), approvalPanel = $('approval-panel');
   var activityEl = $('activity'), addForm = $('add-form'), addMsg = $('add-msg'), startOverBtn = $('start-over');
   var resumeInput = $('resume-input'), samplesEl = $('samples');
+  var roleSelect = $('role-select'), roleOther = $('role-other'), roleOtherField = $('role-other-field'), rolesList = $('roles-list');
+  var OTHER_ROLE = '__other';
   var detailsEl = $('details'), detailsTitle = $('details-title'), detailsSub = $('details-sub'), detailsBody = $('details-body');
 
   var code = null;
@@ -461,6 +486,10 @@
     } else if (d.tool === 'get_screening') {
       main = out.found ? 'Read the AI resume screening: ' + (FIT_LABELS[out.fit] || out.fit) + ', ' + (out.concerns || []).length + ' concern' + ((out.concerns || []).length === 1 ? '' : 's') + '. The resume text itself is never shown to the assistant.'
         : 'Checked for a resume screening: ' + ({ 'no resume uploaded': 'no resume was uploaded', 'screening did not finish': "the screening didn't finish", 'screening still running': 'the screening is still running', 'unknown applicant': 'no matching applicant' }[out.reason] || 'none found') + '.';
+    } else if (d.tool === 'get_role_requirements') {
+      if (out.openRoles && !out.role) main = 'Read the list of open roles and their screening criteria: ' + friendlyList(out.openRoles.map(function (r) { return r.name; })) + '.';
+      else if (out.general) main = 'Checked the screening criteria: ' + (out.role || 'that role') + ' is not one of the open roles, so the general criteria apply.';
+      else main = 'Read the screening criteria for ' + out.role + ': ' + (out.mustHave || []).length + ' must-haves and ' + (out.niceToHave || []).length + ' nice-to-haves.';
     } else if (d.tool === 'reject_applicant') {
       main = out.rejected ? 'Marked ' + (out.name || 'the applicant') + ' as no longer being considered, only after the recruiter approved.' : 'Tried to update the applicant, but no matching record was found.';
     } else if (d.tool === 'advance_stage') {
@@ -823,9 +852,65 @@
     var previous = state === next ? null : state;
     state = next;
     renderBoard(previous);
+    renderRoles();
     renderApprovals();
     renderActivity();
     updateControls();
+  }
+
+  // ---------- open roles and the role dropdown (both from state.roles, never hardcoded) ----------
+
+  var rolesShown = null;
+  function renderRoles() {
+    if (!state || !state.roles) return;
+    var key = JSON.stringify([state.roles, state.generalCriteria]);
+    if (key === rolesShown) return;
+    rolesShown = key;
+    var criteria = function (r) {
+      var box = el('div', 'crit');
+      box.appendChild(el('h3', '', 'Must have'));
+      var must = el('ul'); r.mustHave.forEach(function (t) { must.appendChild(el('li', '', t)); }); box.appendChild(must);
+      box.appendChild(el('h3', '', 'Nice to have'));
+      var nice = el('ul'); r.niceToHave.forEach(function (t) { nice.appendChild(el('li', '', t)); }); box.appendChild(nice);
+      return box;
+    };
+    rolesList.textContent = '';
+    state.roles.forEach(function (r) {
+      var item = el('details', 'role-item');
+      item.appendChild(el('summary', '', r.name));
+      item.appendChild(criteria(r));
+      rolesList.appendChild(item);
+    });
+    if (state.generalCriteria) {
+      var general = el('details', 'role-item general');
+      general.appendChild(el('summary', '', 'General criteria (any other role)'));
+      general.appendChild(criteria(state.generalCriteria));
+      rolesList.appendChild(general);
+    }
+    var chosen = roleSelect.value;
+    roleSelect.textContent = '';
+    var placeholder = el('option', '', 'Choose a role'); placeholder.value = ''; roleSelect.appendChild(placeholder);
+    state.roles.forEach(function (r) { var o = el('option', '', r.name); o.value = r.name; roleSelect.appendChild(o); });
+    var other = el('option', '', 'Other (general criteria)'); other.value = OTHER_ROLE; roleSelect.appendChild(other);
+    roleSelect.value = chosen;
+    syncRoleOther();
+  }
+
+  // "Other" shows a text input for the job title.
+  function syncRoleOther() {
+    var other = roleSelect.value === OTHER_ROLE;
+    roleOtherField.classList.toggle('hidden', !other);
+    roleOther.required = other;
+  }
+
+  // Selects a listed role (case-insensitive), or Other with the title typed in.
+  function setRole(role) {
+    var match = Array.prototype.find.call(roleSelect.options, function (o) {
+      return o.value && o.value !== OTHER_ROLE && o.value.toLowerCase() === String(role).trim().toLowerCase();
+    });
+    roleSelect.value = match ? match.value : OTHER_ROLE;
+    roleOther.value = match ? '' : role;
+    syncRoleOther();
   }
 
   function updateControls() {
@@ -960,11 +1045,13 @@
   function chosenResume() { return (resumeInput.files && resumeInput.files[0]) || sampleFile; }
 
   resumeInput.addEventListener('change', function () { sampleFile = null; });
+  roleSelect.addEventListener('change', function () { syncRoleOther(); if (roleSelect.value === OTHER_ROLE) roleOther.focus(); });
 
   addForm.addEventListener('submit', function (ev) {
     ev.preventDefault();
     var field = function (n) { return addForm.elements.namedItem(n).value.trim(); };
-    var data = { sandboxId: sandboxId, name: field('name'), role: field('role'), notes: field('notes') };
+    var role = roleSelect.value === OTHER_ROLE ? field('roleOther') : roleSelect.value;
+    var data = { sandboxId: sandboxId, name: field('name'), role: role, notes: field('notes') };
     if (!data.name || !data.role) return;
     var file = chosenResume();
     if (file && file.size > MAX_RESUME_BYTES) { addMsg.className = 'form-msg err'; addMsg.textContent = 'The resume file is larger than 2 MB.'; return; }
@@ -983,6 +1070,7 @@
       addMsg.textContent = 'Added ' + r.applicant.name + ' (' + r.applicant.id + ') to Applied.' +
         (r.screening ? (r.screening.ok ? ' Resume screened: select the card to see the summary.' : " Screening didn't finish; use Retry on the card.") : '');
       addForm.reset();
+      syncRoleOther();
       sampleFile = null;
       applyState(r.state);
     }, function (err) {
@@ -1003,7 +1091,7 @@
       sampleFile = file;
       try { var dt = new DataTransfer(); dt.items.add(file); resumeInput.files = dt.files; } catch (e) { /* sampleFile is used instead */ }
       addForm.elements.namedItem('name').value = sample.name;
-      addForm.elements.namedItem('role').value = sample.role;
+      setRole(sample.role);
       addForm.elements.namedItem('notes').value = '';
       addMsg.className = 'form-msg ok'; addMsg.textContent = 'Sample loaded: ' + file.name + ' (fictional). Select Add applicant to add and screen it.';
     }).catch(function (err) { addMsg.className = 'form-msg err'; addMsg.textContent = err.message; });

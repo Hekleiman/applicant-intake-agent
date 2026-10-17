@@ -43,7 +43,7 @@ Source layout:
 | --- | --- |
 | `src/index.ts` | CLI chat loop, its `Runner`, approval handling, tracing, usage reporting |
 | `src/agents/` | Intake and Scheduler agents, the tool-less Screener, the handoff wiring, model settings (reasoning effort, the live `store: false`), approval and guardrail reply wording |
-| `src/tools/` | The six function tools; all business rules live here |
+| `src/tools/` | The seven function tools; all business rules live here |
 | `src/guardrails/piiGuardrail.ts` | The code-only input guardrail and `findPolicyViolation`, its shared rule |
 | `src/guardrails/topicGuardrail.ts` | The model-based topic guardrail |
 | `src/lib/runEvents.ts` | Lifecycle events from the Runner's hooks, collected per Runner (CLI) or per request (live) |
@@ -165,6 +165,8 @@ The decision row is written after the tool's own row, so ordered by insert it re
 ## Resume screening
 
 The Add applicant form takes an optional resume (PDF or .txt, up to 2 MB). The server extracts its text, a separate Screener agent compares it with the role's requirements, and the card on the board gets a fit badge (Strong fit, Partial fit, Weak fit, Not enough info) and a concern count. Selecting the card opens the full result: a summary, each requirement as met, not met or unclear with the evidence, concerns with evidence, a "Check before moving forward" list, and a visible flag when the resume tried to instruct an AI. The panel says "AI summary to help a recruiter. It is not a decision and hasn't verified anything." In chat, "What did the screen find for Casey Lin?" is answered with the `get_screening` tool. "Use a sample resume" fills the form from five fictional resumes in `docs/samples/`. The fifth, "Caregiver, very long (Avery Quinn)", is there to show what happens to a resume longer than the 20,000 characters the server keeps.
+
+**Open roles and the role list.** `src/data/roles.ts` is the only place the criteria are defined. The state response carries the four roles (name, must-haves, nice-to-haves) and the general criteria, and the page builds both the "Open roles" section and the Role dropdown from it, so nothing on the page is hardcoded. Open roles sits under the Add applicant form, collapsed to the role names, each expandable, with the line "Resumes are screened against these. Any other role is screened against general criteria." It is plain information, with no links or buttons, not a job posting. The dropdown lists the four roles, then "Other (general criteria)", which shows a Job title input; the sample buttons select the matching role. The server saves a role that matches a listed one case-insensitively under its canonical name ("caregiver" becomes "Caregiver"); anything else is saved as typed and screened with the general criteria. In chat, the Intake agent answers "What does the Caregiver role require?" or "What roles are open?" with the read-only `get_role_requirements` tool, which returns the criteria from `roles.ts` (or the general criteria with `general: true` for an unlisted role, or every open role for `"all"`), and is told never to describe criteria from memory. The topic classifier counts role requirements and open roles as on topic.
 
 **Design rules, and why each exists.**
 

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { SupabaseStore } from '../src/data/supabaseStore.js';
+import { requirementsFor } from '../src/data/roles.js';
 import { findPolicyViolation } from '../src/guardrails/piiGuardrail.js';
 import { endpoint, HttpError, json, readBody } from '../src/server/http.js';
 import { checkLimits, ipHash, startUsage } from '../src/server/limits.js';
@@ -42,8 +43,11 @@ export const POST = endpoint('applicants', async (request) => {
   const ip = resumeText !== null ? ipHash(request) : null;
   if (ip) await checkLimits(body.sandboxId, ip);
 
+  // A listed role, matched case-insensitively, is saved under its canonical name ("caregiver" ->
+  // "Caregiver"). Anything else is saved as typed and screened with the general criteria.
+  const role = requirementsFor(body.role).role;
   const source = resume && { truncated: resume.truncated, originalChars: resume.originalChars };
-  const applicant = await store.addApplicant({ name: body.name, role: body.role, notes: body.notes, resumeText, resumeSource: source ?? undefined });
+  const applicant = await store.addApplicant({ name: body.name, role, notes: body.notes, resumeText, resumeSource: source ?? undefined });
   await store.addAudit(applicant.id, 'added', `${applicant.name}, ${applicant.role}`);
 
   let screening = null;

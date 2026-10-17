@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { AgentInputItem } from '@openai/agents';
 import type { StoredScreening } from '../agents/screener.js';
 import { applicants as seedApplicants } from '../data/applicants.js';
+import { GENERAL_REQUIREMENTS, OPEN_ROLES } from '../data/roles.js';
 import { SLOTS, type Slot } from '../data/slots.js';
 import { SupabaseStore } from '../data/supabaseStore.js';
 import { PostgresSession } from '../memory/postgresSession.js';
@@ -177,6 +178,9 @@ export async function getState(sandboxId: string) {
     conversation: conversationOf(items),
     seedVersion,
     currentSeedVersion: SEED_VERSION,
+    // From src/data/roles.ts, so the page shows exactly what the Screener uses.
+    roles: OPEN_ROLES,
+    generalCriteria: GENERAL_REQUIREMENTS,
   };
 }
 

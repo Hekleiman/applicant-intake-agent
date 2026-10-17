@@ -72,3 +72,7 @@ export function requirementsFor(role: string): { role: string; general: boolean;
     ? { role: key, general: false, requirements: ROLE_REQUIREMENTS[key]! }
     : { role: role.trim(), general: true, requirements: GENERAL_REQUIREMENTS };
 }
+
+// The open roles in a fixed order, with their criteria, for the state response and the
+// get_role_requirements tool.
+export const OPEN_ROLES = Object.entries(ROLE_REQUIREMENTS).map(([name, r]) => ({ name, ...r }));

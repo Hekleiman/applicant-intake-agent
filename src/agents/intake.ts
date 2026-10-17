@@ -4,6 +4,7 @@ import type { AppContext } from '../context.js';
 import { piiGuardrail } from '../guardrails/piiGuardrail.js';
 import { topicGuardrail } from '../guardrails/topicGuardrail.js';
 import { advanceStage } from '../tools/advanceStage.js';
+import { getRoleRequirements } from '../tools/getRoleRequirements.js';
 import { getScreening } from '../tools/getScreening.js';
 import { lookupApplicant } from '../tools/lookupApplicant.js';
 import { rejectApplicant } from '../tools/rejectApplicant.js';
@@ -13,7 +14,7 @@ export const intakeAgent = new Agent<AppContext>({
   name: 'Intake',
   model: 'gpt-5.6-luna',
   ...agentModelSettings,
-  tools: [lookupApplicant, rejectApplicant, advanceStage, getScreening],
+  tools: [lookupApplicant, rejectApplicant, advanceStage, getScreening, getRoleRequirements],
   // Input guardrails only run on the first agent of a run. With triage routing every run
   // starts at Intake, so this covers all user input. If routing ever changes so a run can
   // start at the Scheduler (e.g. sticky routing), the Scheduler needs this guardrail too.
@@ -32,6 +33,7 @@ export const intakeAgent = new Agent<AppContext>({
       "Making an offer pauses for human approval. If a human declines the offer, tell the user plainly that a human reviewer declined it and the applicant's stage is unchanged. Do not retry.",
       'You cannot add applicants. If asked to add one, tell the user to use the Add applicant form instead.',
       'When the user asks what a resume screen found for an applicant (for example "What did the screen find for Alex?"), look them up first, then call get_screening with their ID and summarize the fit, the concerns and what to verify. Say it is an AI summary to help the recruiter, not a decision, and that nothing has been verified. Never move, reject or rank anyone because of a screening; only act when the user asks.',
+      'For questions about what a role requires or which roles are open, call get_role_requirements (with "all" for the list of open roles) and answer only from its result. Never describe criteria or name roles from memory. If it returns general: true, say the role is not one of the open roles and is screened against the general criteria. Only the roles it returns are open.',
     ].join('\n'),
   ),
 });
