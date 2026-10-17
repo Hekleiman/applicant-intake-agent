@@ -93,8 +93,8 @@
   .card-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
 
   /* Add applicant */
-  /* Name, Role and Notes share one row. The Job title slot under Role is always reserved at
-     desktop width (visibility only), so choosing Other moves nothing else. */
+  /* Name, Role and Notes share one row. The Job title field under Role appears only when Other
+     is chosen, and the rows below move down to make room. */
   .add-form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr); gap: 10px; align-items: start; margin-bottom: 16px; }
   .add-form .add-submit { grid-column: 1 / -1; justify-self: start; }
   .add-form .resume-row { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 10px; align-items: start; }
@@ -108,7 +108,7 @@
     border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; width: 100%;
   }
   .add-form .role-field { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-  .add-form .role-other.off { visibility: hidden; }
+  .add-form .role-other.off { display: none; }
 
   /* Open roles: plain information about what resumes are screened against */
   .roles-box { margin-bottom: 16px; }
@@ -258,7 +258,6 @@
     .column { min-height: 0; }
     .add-form { grid-template-columns: minmax(0, 1fr); }
     .add-form .resume-row { grid-template-columns: minmax(0, 1fr); }
-    .add-form .role-other.off { display: none; }
     .roles-list { grid-template-columns: minmax(0, 1fr); }
     .role-panel { grid-row: auto; }
     .role-panel .crit { grid-template-columns: minmax(0, 1fr); }
