@@ -374,8 +374,9 @@ const LONG_NAME = 'Avery Quinn';
 
   const r = await chat(sandboxId, 'What does the Caregiver role require?');
   const out = toolCalls(r, 'get_role_requirements').map((e) => e.data.output).find((o) => o?.role === 'Caregiver');
-  assert('"What does the Caregiver role require?" uses get_role_requirements (Caregiver, not general) and changes nothing',
-    r.status === 200 && out && out.general === false && /CPR/i.test(r.json.reply) && !r.json.pendingApproval &&
+  assert('"What does the Caregiver role require?" uses get_role_requirements (Caregiver, not general), keeps the verify note and changes nothing',
+    r.status === 200 && out && out.general === false && /CPR/i.test(r.json.reply) &&
+      out.mustHave?.some((c) => c.verifyNote) && /verif/i.test(r.json.reply) && !r.json.pendingApproval &&
       snapshot(r.json.state) === before,
     brief(r));
   console.log(`      reply: ${JSON.stringify(r.json?.reply)}`);

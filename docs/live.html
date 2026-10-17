@@ -93,7 +93,10 @@
   .card-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
 
   /* Add applicant */
-  .add-form { display: grid; grid-template-columns: 1fr 1fr 2fr auto; gap: 10px; align-items: end; margin-bottom: 16px; }
+  /* Name, Role and Notes share one row. The Job title slot under Role is always reserved at
+     desktop width (visibility only), so choosing Other moves nothing else. */
+  .add-form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr); gap: 10px; align-items: start; margin-bottom: 16px; }
+  .add-form .add-submit { grid-column: 1 / -1; justify-self: start; }
   .add-form .resume-row { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 10px; align-items: start; }
   .add-form input[type=file] { padding: 6px 8px; }
   .resume-note { font-size: 0.85rem; color: var(--muted); margin: 4px 0 0; }
@@ -105,19 +108,32 @@
     border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; width: 100%;
   }
   .add-form .role-field { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .add-form .role-other.off { visibility: hidden; }
 
   /* Open roles: plain information about what resumes are screened against */
   .roles-box { margin-bottom: 16px; }
   .roles-box h2 { margin-bottom: 4px; }
   .roles-note { margin: 0 0 10px; font-size: 0.88rem; color: var(--muted); }
-  .roles-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; align-items: start; }
-  .role-item { border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); min-width: 0; }
-  .role-item summary { cursor: pointer; padding: 6px 10px; font-size: 0.92rem; font-weight: 600; }
-  .role-item.general summary { font-weight: 400; color: var(--muted); }
-  .role-item .crit { padding: 0 10px 8px; font-size: 0.85rem; overflow-wrap: anywhere; }
-  .role-item h3 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 6px 0 2px; }
-  .role-item ul { margin: 0; padding-left: 18px; }
-  .role-item li + li { margin-top: 2px; }
+  /* Role names share one row; the open role's criteria sit full width below it. At phone
+     width each panel follows its own name instead (see the 640px block). */
+  .roles-list { display: grid; grid-template-columns: repeat(var(--role-count, 5), minmax(0, 1fr)); gap: 8px; align-items: stretch; }
+  .role-toggle {
+    font: inherit; font-size: 0.92rem; font-weight: 600; text-align: left; color: var(--text);
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+    padding: 6px 10px; cursor: pointer; min-width: 0; overflow-wrap: anywhere;
+  }
+  .role-toggle::before { content: '\25B8'; display: inline-block; width: 1.1em; color: var(--muted); }
+  .role-toggle[aria-expanded=true]::before { content: '\25BE'; }
+  .role-toggle[aria-expanded=true] { border-color: var(--focus); }
+  .role-toggle.general { font-weight: 400; color: var(--muted); }
+  .role-panel {
+    grid-column: 1 / -1; grid-row: 2; border: 1px solid var(--border); border-radius: 8px;
+    background: var(--surface-2); padding: 4px 12px 10px; font-size: 0.88rem; overflow-wrap: anywhere;
+  }
+  .role-panel .crit { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 4px 24px; }
+  .role-panel h3 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 6px 0 2px; }
+  .role-panel ul { margin: 0; padding-left: 18px; }
+  .role-panel li + li { margin-top: 2px; }
   .form-msg { grid-column: 1 / -1; margin: 0; font-size: 0.9rem; min-height: 1.2em; }
   .form-msg.err { color: var(--stop); }
   .form-msg.ok { color: var(--ok); }
@@ -242,6 +258,11 @@
     .column { min-height: 0; }
     .add-form { grid-template-columns: minmax(0, 1fr); }
     .add-form .resume-row { grid-template-columns: minmax(0, 1fr); }
+    .add-form .role-other.off { display: none; }
+    .roles-list { grid-template-columns: minmax(0, 1fr); }
+    .role-panel { grid-row: auto; }
+    .role-panel .crit { grid-template-columns: minmax(0, 1fr); }
+    .add-form .add-submit { justify-self: stretch; }
     .details .mark { display: block; }
     .chat-log { max-height: none; }
     .composer { flex-direction: column; }
@@ -281,10 +302,9 @@
       <label>Name<input name="name" maxlength="80" required autocomplete="off"></label>
       <div class="role-field">
         <label>Role<select name="role" id="role-select" required><option value="">Choose a role</option></select></label>
-        <label class="hidden" id="role-other-field">Job title<input name="roleOther" id="role-other" maxlength="80" autocomplete="off"></label>
+        <label class="role-other off" id="role-other-field">Job title<input name="roleOther" id="role-other" maxlength="80" autocomplete="off"></label>
       </div>
       <label>Notes (optional)<input name="notes" maxlength="500" autocomplete="off"></label>
-      <button class="btn btn-primary" type="submit">Add applicant</button>
       <div class="resume-row">
         <label>Resume, PDF or .txt, optional<input name="resume" id="resume-input" type="file" accept=".pdf,.txt,application/pdf,text/plain"></label>
         <div>
@@ -292,6 +312,7 @@
           <p class="resume-note">Fictional samples only. Please don't upload real people's resumes. An AI screens the resume to help a recruiter; it doesn't decide anything.</p>
         </div>
       </div>
+      <button class="btn btn-primary add-submit" type="submit">Add applicant</button>
       <p class="form-msg" id="add-msg" role="status"></p>
     </form>
 
@@ -489,7 +510,8 @@
     } else if (d.tool === 'get_role_requirements') {
       if (out.openRoles && !out.role) main = 'Read the list of open roles and their screening criteria: ' + friendlyList(out.openRoles.map(function (r) { return r.name; })) + '.';
       else if (out.general) main = 'Checked the screening criteria: ' + (out.role || 'that role') + ' is not one of the open roles, so the general criteria apply.';
-      else main = 'Read the screening criteria for ' + out.role + ': ' + (out.mustHave || []).length + ' must-haves and ' + (out.niceToHave || []).length + ' nice-to-haves.';
+      else main = 'Read the screening criteria for ' + out.role + ': ' + (out.mustHave || []).length + ' must-haves and ' + (out.niceToHave || []).length + ' nice-to-haves' +
+        ((out.mustHave || []).concat(out.niceToHave || []).some(function (c) { return c && c.verifyNote; }) ? ', including what a human must verify.' : '.');
     } else if (d.tool === 'reject_applicant') {
       main = out.rejected ? 'Marked ' + (out.name || 'the applicant') + ' as no longer being considered, only after the recruiter approved.' : 'Tried to update the applicant, but no matching record was found.';
     } else if (d.tool === 'advance_stage') {
@@ -704,6 +726,13 @@
     return line;
   }
 
+  // Display only: the stored value keeps its precision.
+  function yearsLabel(years) {
+    if (years < 1) return 'Less than 1 year of relevant experience';
+    var whole = Math.round(years);
+    return 'About ' + whole + ' year' + (whole === 1 ? '' : 's') + ' of relevant experience';
+  }
+
   function openDetails(id) {
     var a = state.applicants.filter(function (x) { return x.id === id; })[0];
     var screening = (state.screenings || {})[id];
@@ -718,7 +747,7 @@
       var r = screening.result;
       detailsSub.appendChild(el('span', 'fit fit-' + r.fit, FIT_LABELS[r.fit] || r.fit));
       if (r.yearsRelevantExperience !== null && r.yearsRelevantExperience !== undefined) {
-        detailsSub.appendChild(el('span', '', 'About ' + r.yearsRelevantExperience + ' year' + (r.yearsRelevantExperience === 1 ? '' : 's') + ' of relevant experience'));
+        detailsSub.appendChild(el('span', '', yearsLabel(r.yearsRelevantExperience)));
       }
       if (r.injectionAttempt) {
         detailsBody.appendChild(el('p', 'injection', "This resume contains text aimed at an AI. The screener has no tools, so that text couldn't make it change anything. It could still have influenced the rating, so check the evidence below."));
@@ -860,7 +889,7 @@
 
   // ---------- open roles and the role dropdown (both from state.roles, never hardcoded) ----------
 
-  var rolesShown = null;
+  var rolesShown = null, openRole = null;
   function renderRoles() {
     if (!state || !state.roles) return;
     var key = JSON.stringify([state.roles, state.generalCriteria]);
@@ -868,25 +897,36 @@
     rolesShown = key;
     var criteria = function (r) {
       var box = el('div', 'crit');
-      box.appendChild(el('h3', '', 'Must have'));
-      var must = el('ul'); r.mustHave.forEach(function (t) { must.appendChild(el('li', '', t)); }); box.appendChild(must);
-      box.appendChild(el('h3', '', 'Nice to have'));
-      var nice = el('ul'); r.niceToHave.forEach(function (t) { nice.appendChild(el('li', '', t)); }); box.appendChild(nice);
+      var col = function (title, items) {
+        var part = el('div');
+        part.appendChild(el('h3', '', title));
+        var list = el('ul'); items.forEach(function (t) { list.appendChild(el('li', '', t)); }); part.appendChild(list);
+        box.appendChild(part);
+      };
+      col('Must have', r.mustHave);
+      col('Nice to have', r.niceToHave);
       return box;
     };
+    var entries = state.roles.map(function (r) { return { key: r.name, label: r.name, criteria: r }; });
+    if (state.generalCriteria) entries.push({ key: '__general', label: 'General criteria (any other role)', criteria: state.generalCriteria, general: true });
     rolesList.textContent = '';
-    state.roles.forEach(function (r) {
-      var item = el('details', 'role-item');
-      item.appendChild(el('summary', '', r.name));
-      item.appendChild(criteria(r));
-      rolesList.appendChild(item);
+    rolesList.style.setProperty('--role-count', String(entries.length));
+    entries.forEach(function (e, i) {
+      var btn = el('button', 'role-toggle' + (e.general ? ' general' : ''), e.label);
+      btn.type = 'button';
+      btn.id = 'role-toggle-' + i;
+      btn.setAttribute('aria-controls', 'role-panel-' + i);
+      btn.dataset.role = e.key;
+      var panel = el('div', 'role-panel');
+      panel.id = 'role-panel-' + i;
+      panel.setAttribute('role', 'region');
+      panel.setAttribute('aria-labelledby', btn.id);
+      panel.appendChild(criteria(e.criteria));
+      btn.addEventListener('click', function () { openRole = openRole === e.key ? null : e.key; syncRoleToggles(); });
+      rolesList.appendChild(btn);
+      rolesList.appendChild(panel);
     });
-    if (state.generalCriteria) {
-      var general = el('details', 'role-item general');
-      general.appendChild(el('summary', '', 'General criteria (any other role)'));
-      general.appendChild(criteria(state.generalCriteria));
-      rolesList.appendChild(general);
-    }
+    syncRoleToggles();
     var chosen = roleSelect.value;
     roleSelect.textContent = '';
     var placeholder = el('option', '', 'Choose a role'); placeholder.value = ''; roleSelect.appendChild(placeholder);
@@ -896,10 +936,20 @@
     syncRoleOther();
   }
 
+  // One role open at a time.
+  function syncRoleToggles() {
+    rolesList.querySelectorAll('.role-toggle').forEach(function (btn) {
+      var open = btn.dataset.role === openRole;
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      $(btn.getAttribute('aria-controls')).classList.toggle('hidden', !open);
+    });
+  }
+
   // "Other" shows a text input for the job title.
   function syncRoleOther() {
     var other = roleSelect.value === OTHER_ROLE;
-    roleOtherField.classList.toggle('hidden', !other);
+    roleOtherField.classList.toggle('off', !other);
+    roleOther.disabled = !other;
     roleOther.required = other;
   }
 

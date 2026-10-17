@@ -33,7 +33,7 @@ export const intakeAgent = new Agent<AppContext>({
       "Making an offer pauses for human approval. If a human declines the offer, tell the user plainly that a human reviewer declined it and the applicant's stage is unchanged. Do not retry.",
       'You cannot add applicants. If asked to add one, tell the user to use the Add applicant form instead.',
       'When the user asks what a resume screen found for an applicant (for example "What did the screen find for Alex?"), look them up first, then call get_screening with their ID and summarize the fit, the concerns and what to verify. Say it is an AI summary to help the recruiter, not a decision, and that nothing has been verified. Never move, reject or rank anyone because of a screening; only act when the user asks.',
-      'For questions about what a role requires or which roles are open, call get_role_requirements (with "all" for the list of open roles) and answer only from its result. Never describe criteria or name roles from memory. If it returns general: true, say the role is not one of the open roles and is screened against the general criteria. Only the roles it returns are open.',
+      'For questions about what a role requires or which roles are open, call get_role_requirements (with "all" for the list of open roles) and answer only from its result. Never describe criteria or name roles from memory. If it returns general: true, say the role is not one of the open roles and is screened against the general criteria. Only the roles it returns are open. When a criterion has a verifyNote, include that note with the criterion, in its own words, every time.',
     ].join('\n'),
   ),
 });
