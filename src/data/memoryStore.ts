@@ -7,8 +7,10 @@ import {
   type BookSlotResult,
   type Booking,
   type NewApplicant,
+  type ScreeningRecord,
   type Stage,
   type Store,
+  todayInTimeZone,
 } from './store.js';
 
 // In-process store for the CLI: a copy of the seed data, reset on every start.
@@ -40,7 +42,7 @@ export class MemoryStore implements Store {
       name: input.name,
       role: input.role,
       stage: 'applied',
-      appliedOn: new Date().toISOString().slice(0, 10),
+      appliedOn: todayInTimeZone(),
       notes: input.notes,
     };
     this.applicants.push(applicant);
@@ -66,6 +68,10 @@ export class MemoryStore implements Store {
     return { ok: true };
   }
 
+  async cancelBooking(applicantId: string) {
+    for (const [slot, id] of this.bookings) if (id === applicantId) this.bookings.delete(slot);
+  }
+
   async listBookings(): Promise<Booking[]> {
     return [...this.bookings].map(([slot, applicantId]) => ({ slot, applicantId }));
   }
@@ -76,6 +82,11 @@ export class MemoryStore implements Store {
 
   async listAudit(limit?: number) {
     return (limit === undefined ? this.audit : this.audit.slice(-limit)).map((e) => ({ ...e }));
+  }
+
+  // The CLI has no resume upload, so nobody has a screening.
+  async getScreening(id: string): Promise<ScreeningRecord | null> {
+    return (await this.getApplicant(id)) ? { hasResume: false, screening: null, screenedAt: null } : null;
   }
 }
 

@@ -101,3 +101,16 @@ select cron.schedule(
   $$delete from public.sandboxes where last_seen_at < now() - interval '24 hours';
     delete from public.usage_log where at < now() - interval '7 days';$$
 );
+
+-- 2026-10-16: resume screening. The extracted resume text (never the file), the Screener's
+-- structured result and when it was last attempted; audit actions for screenings and offer
+-- requests; usage rows for screenings.
+alter table public.applicants
+  add column resume_text text check (char_length(resume_text) <= 20000),
+  add column screening jsonb,
+  add column screened_at timestamptz;
+alter table public.audit_log drop constraint audit_log_action_check;
+alter table public.audit_log add constraint audit_log_action_check check (action in
+  ('added', 'stage_changed', 'booked', 'rejection_requested', 'offer_requested', 'screened', 'approved', 'declined', 'rejected'));
+alter table public.usage_log drop constraint usage_log_kind_check;
+alter table public.usage_log add constraint usage_log_kind_check check (kind in ('message', 'approval', 'screening'));

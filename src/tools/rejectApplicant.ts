@@ -22,6 +22,8 @@ export const rejectApplicant = tool({
     }
 
     await store.setStage(applicant.id, 'rejected');
+    // A rejected applicant gives up any interview slot, so the board and the open slots agree.
+    await store.cancelBooking(applicant.id);
     await store.addAudit(applicant.id, 'rejected', reason);
     console.log(`[tool] reject_applicant(${applicant.id}) -> rejected`);
     return { rejected: true, applicantId: applicant.id, name: applicant.name };

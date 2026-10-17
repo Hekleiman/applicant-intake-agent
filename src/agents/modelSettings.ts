@@ -26,3 +26,11 @@ if (raw && !isEffort(raw)) {
 
 export const agentModelSettings: { modelSettings?: ModelSettings } =
   raw && isEffort(raw) ? { modelSettings: { reasoning: { effort: raw } } } : {};
+
+// Applied to every model call the live site makes (Intake, Scheduler, topic check, Screener)
+// through each live Runner's modelSettings, which override the agents' own. store: false asks
+// OpenAI not to keep the response for later retrieval; by default it does, and the trace
+// dashboard opens those stored responses in full even when traceIncludeSensitiveData is false.
+// Nothing here relies on stored responses: the full history is resent from the session on
+// every turn and no previousResponseId or conversationId is used. The CLI keeps the default.
+export const LIVE_MODEL_SETTINGS: ModelSettings = { store: false };

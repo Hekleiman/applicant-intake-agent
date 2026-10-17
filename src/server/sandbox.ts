@@ -1,7 +1,11 @@
 import { randomUUID } from 'node:crypto';
+import type { AgentInputItem } from '@openai/agents';
+import type { StoredScreening } from '../agents/screener.js';
 import { applicants as seedApplicants } from '../data/applicants.js';
-import { SLOTS } from '../data/slots.js';
+import { SLOTS, type Slot } from '../data/slots.js';
 import { SupabaseStore } from '../data/supabaseStore.js';
+import { PostgresSession } from '../memory/postgresSession.js';
+import { describeAudit } from './activity.js';
 import { check, db } from './supabase.js';
 import { HttpError } from './http.js';
 
@@ -19,7 +23,14 @@ export type Interruption = {
 
 export type PendingApproval = { pausedRunId: string; createdAt: string; interruptions: Interruption[] };
 
-// A new sandbox with a fresh copy of the five fake applicants and no bookings.
+// Live sandbox only: Devon Park starts in Interview scheduled, so he holds a slot. The CLI seed
+// and the recordings have no bookings and stay as they are.
+const SEED_BOOKINGS: { slot: Slot; applicantId: string }[] = [{ slot: 'Wed 09:30', applicantId: 'A-1002' }];
+
+// A screening still running after this long has failed (functions stop after 60 seconds).
+const SCREENING_TIMEOUT_MS = 90_000;
+
+// A new sandbox with a fresh copy of the five fake applicants and Devon's booking.
 export async function createSandbox(): Promise<string> {
   const id = randomUUID();
   check(await db().from('sandboxes').insert({ id }), 'create sandbox');
@@ -38,6 +49,12 @@ export async function createSandbox(): Promise<string> {
         })),
       ),
     'seed applicants',
+  );
+  check(
+    await db()
+      .from('bookings')
+      .insert(SEED_BOOKINGS.map((b) => ({ sandbox_id: id, slot: b.slot, applicant_id: b.applicantId }))),
+    'seed bookings',
   );
   return id;
 }
@@ -75,14 +92,50 @@ export async function openPausedRuns(sandboxId: string) {
   ) as { id: string; status: 'pending' | 'resolving'; created_at: string; interruptions: Interruption[] }[];
 }
 
+export type ScreeningStatus = 'running' | 'done' | 'failed';
+export type ScreeningView = { status: ScreeningStatus; result: StoredScreening | null };
+export type ConversationMessage = { role: 'user' | 'assistant'; text: string };
+
+const textOf = (content: unknown): string => {
+  if (typeof content === 'string') return content;
+  if (!Array.isArray(content)) return '';
+  return content
+    .map((part) => (part && typeof part === 'object' && 'text' in part && typeof part.text === 'string' ? part.text : ''))
+    .join('');
+};
+
+// The visible conversation: user and assistant message text only, in order. Tool calls, tool
+// results and handoffs stay on the server.
+export function conversationOf(items: AgentInputItem[]): ConversationMessage[] {
+  const messages: ConversationMessage[] = [];
+  for (const item of items) {
+    if (!item || typeof item !== 'object' || !('role' in item)) continue;
+    if (item.role !== 'user' && item.role !== 'assistant') continue;
+    if ('type' in item && item.type !== undefined && item.type !== 'message') continue;
+    const text = textOf(item.content).trim();
+    if (text) messages.push({ role: item.role, text });
+  }
+  return messages;
+}
+
 export async function getState(sandboxId: string) {
   const store = new SupabaseStore(sandboxId);
-  const [applicants, bookings, audit, paused] = await Promise.all([
+  const [applicants, bookings, audit, paused, screeningRows, items] = await Promise.all([
     store.listApplicants(),
     store.listBookings(),
     store.listAudit(AUDIT_ENTRIES),
     openPausedRuns(sandboxId),
+    store.listScreenings(),
+    new PostgresSession(sandboxId).getItems(),
   ]);
+  const names = new Map(applicants.map((a) => [a.id, a.name]));
+  const nameOf = (id: string) => names.get(id) ?? id;
+  const screenings: Record<string, ScreeningView> = {};
+  for (const [id, r] of Object.entries(screeningRows)) {
+    if (!r.hasResume) continue;
+    const running = !r.screening && !r.screenedAt && Date.now() - Date.parse(r.createdAt) < SCREENING_TIMEOUT_MS;
+    screenings[id] = { status: r.screening ? 'done' : running ? 'running' : 'failed', result: r.screening };
+  }
   const taken = new Set(bookings.map((b) => b.slot));
   const pendingApprovals: PendingApproval[] = paused
     .filter((p) => p.status === 'pending')
@@ -92,7 +145,9 @@ export async function getState(sandboxId: string) {
     bookings,
     openSlots: SLOTS.filter((s) => !taken.has(s)),
     pendingApprovals,
-    audit,
+    audit: audit.map((e) => ({ ...e, text: describeAudit(e, nameOf) })),
+    screenings,
+    conversation: conversationOf(items),
   };
 }
 

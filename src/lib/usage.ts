@@ -25,3 +25,9 @@ export const topicUsageOf = (results: InputGuardrailResult[]): Usage | undefined
   const info = result?.output.outputInfo as TopicOutputInfo | undefined;
   return info?.checked ? info.usage : undefined;
 };
+
+// The topic check's OpenAI response IDs (live runs only record them).
+export const topicResponseIdsOf = (results: InputGuardrailResult[]): string[] => {
+  const result = results.find((r) => r.guardrail.name === topicGuardrail.name);
+  return (result?.output.outputInfo as TopicOutputInfo | undefined)?.responseIds ?? [];
+};

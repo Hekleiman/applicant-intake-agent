@@ -1,3 +1,4 @@
+import type { StoredScreening } from '../agents/screener.js';
 import { check, db, UNIQUE_VIOLATION } from '../server/supabase.js';
 import type { Applicant } from './applicants.js';
 import { SLOTS, isSlot, type Slot } from './slots.js';
@@ -8,8 +9,10 @@ import {
   type BookSlotResult,
   type Booking,
   type NewApplicant,
+  type ScreeningRecord,
   type Stage,
   type Store,
+  todayInTimeZone,
 } from './store.js';
 
 type ApplicantRow = {
@@ -81,7 +84,9 @@ export class SupabaseStore implements Store {
           name: input.name,
           role: input.role,
           stage: 'applied',
+          applied_on: todayInTimeZone(),
           notes: input.notes,
+          resume_text: input.resumeText ?? null,
         })
         .select(APPLICANT_COLUMNS)
         .single();
@@ -132,6 +137,13 @@ export class SupabaseStore implements Store {
     return { ok: false, reason: 'slot taken' };
   }
 
+  async cancelBooking(applicantId: string) {
+    check(
+      await db().from('bookings').delete().eq('sandbox_id', this.sandboxId).eq('applicant_id', applicantId),
+      'cancel booking',
+    );
+  }
+
   async addAudit(applicantId: string, action: AuditAction, detail: string) {
     check(
       await db()
@@ -158,4 +170,81 @@ export class SupabaseStore implements Store {
       .reverse()
       .map((r): AuditEntry => ({ at: r.at, applicantId: r.applicant_id, action: r.action, detail: r.detail }));
   }
+
+  // PostgREST can't select an expression, so "has a resume" is a second query filtered on
+  // resume_text that returns only IDs; the text itself is never read here.
+  private async idsWithResume(id?: string): Promise<Set<string>> {
+    let query = db().from('applicants').select('id').eq('sandbox_id', this.sandboxId).not('resume_text', 'is', null);
+    if (id !== undefined) query = query.eq('id', id.trim());
+    const rows = check(await query, 'list resumes') as { id: string }[];
+    return new Set(rows.map((r) => r.id));
+  }
+
+  async getScreening(id: string): Promise<ScreeningRecord | null> {
+    const [row, withResume] = await Promise.all([
+      db()
+        .from('applicants')
+        .select('id, screening, screened_at')
+        .eq('sandbox_id', this.sandboxId)
+        .eq('id', id.trim())
+        .maybeSingle()
+        .then((r) => check(r, 'get screening') as ScreeningRow | null),
+      this.idsWithResume(id),
+    ]);
+    return row ? toScreening(row, withResume) : null;
+  }
+
+  // Every applicant's screening, for the board. Never selects the resume text.
+  async listScreenings(): Promise<Record<string, ScreeningRecord & { createdAt: string }>> {
+    const [rows, withResume] = await Promise.all([
+      db()
+        .from('applicants')
+        .select('id, created_at, screening, screened_at')
+        .eq('sandbox_id', this.sandboxId)
+        .then((r) => check(r, 'list screenings') as (ScreeningRow & { created_at: string })[]),
+      this.idsWithResume(),
+    ]);
+    return Object.fromEntries(rows.map((r) => [r.id, { ...toScreening(r, withResume), createdAt: r.created_at }]));
+  }
+
+  // Server only: the text goes to the Screener and nowhere else.
+  async getResumeText(id: string): Promise<string | null> {
+    const row = check(
+      await db().from('applicants').select('resume_text').eq('sandbox_id', this.sandboxId).eq('id', id.trim()).maybeSingle(),
+      'get resume text',
+    ) as { resume_text: string | null } | null;
+    return row?.resume_text ?? null;
+  }
+
+  // A finished screening, or null after a failed attempt; either way screened_at records when.
+  async saveScreening(id: string, screening: StoredScreening | null) {
+    check(
+      await db()
+        .from('applicants')
+        .update({ screening, screened_at: new Date().toISOString() })
+        .eq('sandbox_id', this.sandboxId)
+        .eq('id', id.trim()),
+      'save screening',
+    );
+  }
+
+  // Before a retry: back to "not attempted yet", so other tabs show it as running.
+  async clearScreening(id: string) {
+    check(
+      await db()
+        .from('applicants')
+        .update({ screening: null, screened_at: null })
+        .eq('sandbox_id', this.sandboxId)
+        .eq('id', id.trim()),
+      'clear screening',
+    );
+  }
 }
+
+type ScreeningRow = { id: string; screening: StoredScreening | null; screened_at: string | null };
+
+const toScreening = (row: ScreeningRow, withResume: Set<string>): ScreeningRecord => ({
+  hasResume: withResume.has(row.id),
+  screening: row.screening,
+  screenedAt: row.screened_at,
+});

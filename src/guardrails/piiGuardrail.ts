@@ -7,9 +7,10 @@ type Input = InputGuardrailFunctionArgs['input'];
 
 export type PolicyViolation = 'ssn_like' | 'too_long';
 
-// The code-only rules, shared with the topic check so it can skip messages blocked here.
-export function findPolicyViolation(text: string): PolicyViolation | null {
-  return SSN_LIKE.test(text) ? 'ssn_like' : text.length > MAX_LENGTH ? 'too_long' : null;
+// The code-only rules, shared with the topic check so it can skip messages blocked here, and with
+// the Add applicant form. A resume passes its own, larger maxLength.
+export function findPolicyViolation(text: string, maxLength = MAX_LENGTH): PolicyViolation | null {
+  return SSN_LIKE.test(text) ? 'ssn_like' : text.length > maxLength ? 'too_long' : null;
 }
 
 // Text of the newest user message, whether the run got a plain string or a list of items.

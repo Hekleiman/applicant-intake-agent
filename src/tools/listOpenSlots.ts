@@ -1,6 +1,7 @@
 import { tool, type RunContext } from '@openai/agents';
 import { z } from 'zod';
 import type { AppContext } from '../context.js';
+import { withLabel } from '../data/slots.js';
 import { storeFor } from '../data/storeFor.js';
 
 export const listOpenSlots = tool({
@@ -24,7 +25,7 @@ export const listOpenSlots = tool({
         message: `${applicant.name} was rejected and can't be scheduled.`,
       };
     } else {
-      result = { openSlots: await store.openSlots() };
+      result = { openSlots: (await store.openSlots()).map(withLabel) };
     }
 
     console.log(`[tool] list_open_slots(${applicantId}) -> ${JSON.stringify(result)}`);

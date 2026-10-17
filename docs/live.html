@@ -25,6 +25,10 @@
     --tech-bg: #f1f3f7;
     --focus: #f0b429;
     --highlight: #fff3c4;
+    --ok-bg: #e3f4ea;
+    --warn-bg: #fdf0dc;
+    --stop-bg: #fbe5e3;
+    --neutral-bg: #e9edf2;
     color-scheme: light;
   }
   @media (prefers-color-scheme: dark) {
@@ -46,6 +50,10 @@
       --tech-bg: #141a22;
       --focus: #f0b429;
       --highlight: #4a3f14;
+      --ok-bg: #173826;
+      --warn-bg: #3d2c12;
+      --stop-bg: #3d1d1a;
+      --neutral-bg: #2a333f;
       color-scheme: dark;
     }
   }
@@ -86,6 +94,11 @@
 
   /* Add applicant */
   .add-form { display: grid; grid-template-columns: 1fr 1fr 2fr auto; gap: 10px; align-items: end; margin-bottom: 16px; }
+  .add-form .resume-row { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 10px; align-items: start; }
+  .add-form input[type=file] { padding: 6px 8px; }
+  .resume-note { font-size: 0.85rem; color: var(--muted); margin: 4px 0 0; }
+  .samples { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 0.85rem; color: var(--muted); }
+  .samples button { font: inherit; font-size: 0.82rem; background: var(--surface-2); color: var(--text); border: 1px solid var(--border); border-radius: 999px; padding: 4px 10px; cursor: pointer; }
   .add-form label { display: flex; flex-direction: column; gap: 4px; font-size: 0.85rem; color: var(--muted); }
   .add-form input {
     font: inherit; color: var(--text); background: var(--bg);
@@ -106,6 +119,34 @@
     transition: background-color 0.6s ease;
   }
   .applicant:last-child { margin-bottom: 0; }
+  button.applicant { display: block; width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+  button.applicant:hover { border-color: var(--accent); }
+  .screen-line { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; margin-top: 4px; font-size: 0.8rem; color: var(--muted); }
+  .fit { display: inline-block; font-size: 0.75rem; font-weight: 600; padding: 1px 8px; border-radius: 999px; border: 1px solid transparent; }
+  .fit-strong { background: var(--ok-bg); color: var(--ok); border-color: var(--ok); }
+  .fit-partial { background: var(--warn-bg); color: var(--warn); border-color: var(--warn); }
+  .fit-weak { background: var(--stop-bg); color: var(--stop); border-color: var(--stop); }
+  .fit-insufficient_info { background: var(--neutral-bg); color: var(--muted); border-color: var(--border); }
+  .flag { color: var(--stop); font-weight: 600; }
+  .retry-btn { font: inherit; font-size: 0.8rem; background: none; border: 1px solid var(--accent); color: var(--accent); border-radius: 6px; padding: 1px 8px; cursor: pointer; }
+
+  /* Screening details */
+  dialog.details { width: min(640px, calc(100vw - 32px)); max-height: 85vh; overflow-y: auto; border: 1px solid var(--border); border-radius: 12px; padding: 18px; background: var(--surface); color: var(--text); }
+  dialog.details::backdrop { background: rgba(10, 14, 20, 0.45); }
+  .details-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+  .details h3 { margin: 0; font-size: 1.15rem; }
+  .details h4 { margin: 16px 0 6px; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+  .details .disclaimer { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 0.88rem; margin: 10px 0 0; }
+  .details .injection { background: var(--stop-bg); border: 1px solid var(--stop); color: var(--text); border-radius: 8px; padding: 8px 10px; font-size: 0.9rem; margin: 10px 0 0; }
+  .details ul { margin: 0; padding-left: 0; list-style: none; }
+  .details li { padding: 6px 0; border-top: 1px solid var(--border); font-size: 0.92rem; overflow-wrap: anywhere; }
+  .details li:first-child { border-top: none; }
+  .details .evidence { display: block; color: var(--muted); font-size: 0.85rem; margin-top: 2px; }
+  .details .mark { display: inline-block; min-width: 5.5em; font-weight: 600; font-size: 0.8rem; }
+  .mark-met { color: var(--ok); }
+  .mark-not_met { color: var(--stop); }
+  .mark-unclear { color: var(--warn); }
+  .details .verify li::before { content: "\25A1  "; color: var(--muted); }
   .applicant .name { font-weight: 600; }
   .applicant .role, .applicant .slot { font-size: 0.85rem; color: var(--muted); }
   .applicant .slot { color: var(--accent); }
@@ -186,6 +227,8 @@
     .board { grid-template-columns: minmax(0, 1fr); }
     .column { min-height: 0; }
     .add-form { grid-template-columns: minmax(0, 1fr); }
+    .add-form .resume-row { grid-template-columns: minmax(0, 1fr); }
+    .details .mark { display: block; }
     .chat-log { max-height: none; }
     .composer { flex-direction: column; }
   }
@@ -225,6 +268,13 @@
       <label>Role<input name="role" maxlength="80" required autocomplete="off"></label>
       <label>Notes (optional)<input name="notes" maxlength="500" autocomplete="off"></label>
       <button class="btn btn-primary" type="submit">Add applicant</button>
+      <div class="resume-row">
+        <label>Resume, PDF or .txt, optional<input name="resume" id="resume-input" type="file" accept=".pdf,.txt,application/pdf,text/plain"></label>
+        <div>
+          <div class="samples" id="samples"><span>Use a sample resume:</span></div>
+          <p class="resume-note">Fictional samples only. Please don't upload real people's resumes. An AI screens the resume to help a recruiter; it doesn't decide anything.</p>
+        </div>
+      </div>
       <p class="form-msg" id="add-msg" role="status"></p>
     </form>
 
@@ -260,6 +310,18 @@
   </main>
 </div>
 
+<dialog class="details" id="details" aria-labelledby="details-title">
+  <div class="details-head">
+    <div>
+      <h3 id="details-title"></h3>
+      <div class="screen-line" id="details-sub"></div>
+    </div>
+    <button class="btn btn-secondary" type="button" id="details-close">Close</button>
+  </div>
+  <p class="disclaimer">AI summary to help a recruiter. It is not a decision and hasn't verified anything.</p>
+  <div id="details-body"></div>
+</dialog>
+
 <script>
 (function () {
   'use strict';
@@ -293,11 +355,20 @@
   var startersEl = $('starters'), composer = $('composer'), messageEl = $('message'), sendBtn = $('send');
   var statusEl = $('composer-status'), approvalsEl = $('approvals'), approvalPanel = $('approval-panel');
   var activityEl = $('activity'), addForm = $('add-form'), addMsg = $('add-msg'), startOverBtn = $('start-over');
+  var resumeInput = $('resume-input'), samplesEl = $('samples');
+  var detailsEl = $('details'), detailsTitle = $('details-title'), detailsSub = $('details-sub'), detailsBody = $('details-body');
 
   var code = null;
   var sandboxId = null;
   var state = null;
   var busy = false;
+  // A sample resume picked with a button, used when the browser can't put it in the file input.
+  var sampleFile = null;
+  // An applicant being added with a resume ({ name, role }) and applicant IDs being re-screened:
+  // their cards show "Screening resume..." until the server answers.
+  var addingWithResume = null;
+  var rescreening = {};
+  var MAX_RESUME_BYTES = 2 * 1024 * 1024;
 
   // ---------- storage (may be unavailable) ----------
 
@@ -321,11 +392,17 @@
     var h12 = h % 12 === 0 ? 12 : h % 12;
     return (DAYS[m[1]] || m[1]) + ' at ' + h12 + ':' + m[3] + ' ' + (h >= 12 ? 'PM' : 'AM');
   }
+  // Slots arrive as { slot, label } from the tools, or as plain strings in older results.
+  function slotText(s) { return s && typeof s === 'object' ? (s.label || friendlySlot(s.slot)) : friendlySlot(s); }
+  var FIT_LABELS = { strong: 'Strong fit', partial: 'Partial fit', weak: 'Weak fit', insufficient_info: 'Not enough info' };
+  // "The role was filled." -> "The role was filled", so the sentence around it has one period.
+  function trimReason(text) { return String(text || '').trim().replace(/[\s.!?;:,]+$/, ''); }
   function friendlyList(items) {
     if (items.length <= 1) return items.join('');
     if (items.length === 2) return items[0] + ' and ' + items[1];
     return items.slice(0, -1).join(', ') + ' and ' + items[items.length - 1];
   }
+  var STAGE_NAMES = { applied: 'Applied', phone_screen: 'Phone screen', interview_scheduled: 'Interview scheduled', offer: 'Offer', rejected: 'Rejected' };
   var STAGES = {
     applied: 'applied, not yet reviewed',
     phone_screen: 'phone screen',
@@ -372,15 +449,18 @@
       else main = 'Checked the files: no applicant matched that name.';
     } else if (d.tool === 'list_open_slots') {
       if (out.error) main = out.error === 'applicant rejected' ? 'Checked for open interview times, but this applicant is no longer being considered.' : 'Checked for open interview times, but no matching applicant was found.';
-      else main = 'Checked which interview times are still open: ' + ((out.openSlots || []).length ? friendlyList(out.openSlots.map(friendlySlot)) : 'none') + '.';
+      else main = 'Checked which interview times are still open: ' + ((out.openSlots || []).length ? friendlyList(out.openSlots.map(slotText)) : 'none') + '.';
     } else if (d.tool === 'book_interview') {
-      if (out.booked) main = 'Booked the interview: ' + out.name + ', ' + friendlySlot(out.slot) + '.';
+      if (out.booked) main = 'Booked the interview: ' + out.name + ', ' + (out.label || friendlySlot(out.slot)) + '.';
       else main = 'Tried to book, but ' + ({
         'applicant rejected': 'this applicant is no longer being considered',
         'slot taken': friendlySlot(args.slot) + ' is already taken by someone else',
-        'already booked': 'this applicant already has an interview on ' + friendlySlot(out.currentSlot),
+        'already booked': 'this applicant already has an interview on ' + (out.currentSlotLabel || friendlySlot(out.currentSlot)),
         'unknown applicant': 'no applicant with that record could be found'
       }[out.reason] || 'it did not go through') + '.';
+    } else if (d.tool === 'get_screening') {
+      main = out.found ? 'Read the AI resume screening: ' + (FIT_LABELS[out.fit] || out.fit) + ', ' + (out.concerns || []).length + ' concern' + ((out.concerns || []).length === 1 ? '' : 's') + '. The resume text itself is never shown to the assistant.'
+        : 'Checked for a resume screening: ' + ({ 'no resume uploaded': 'no resume was uploaded', 'screening did not finish': "the screening didn't finish", 'screening still running': 'the screening is still running', 'unknown applicant': 'no matching applicant' }[out.reason] || 'none found') + '.';
     } else if (d.tool === 'reject_applicant') {
       main = out.rejected ? 'Marked ' + (out.name || 'the applicant') + ' as no longer being considered, only after the recruiter approved.' : 'Tried to update the applicant, but no matching record was found.';
     } else if (d.tool === 'advance_stage') {
@@ -482,6 +562,16 @@
 
   function addSystem(text) { logEl.appendChild(el('p', 'system-line', text)); scrollLog(); }
 
+  // An earlier message, restored after a reload: text only, no technical details.
+  function addHistory(m) {
+    var row = el('div', 'bubble-row ' + (m.role === 'user' ? 'user' : 'bot'));
+    row.appendChild(el('div', 'who', m.role === 'user' ? 'You' : 'Assistant'));
+    var b = el('div', 'bubble');
+    if (m.role === 'user') b.appendChild(el('p', '', m.text)); else renderReply(m.text, b);
+    row.appendChild(b);
+    logEl.appendChild(row);
+  }
+
   function addAssistant(result) {
     var row = el('div', 'bubble-row bot');
     row.appendChild(el('div', 'who', 'Assistant'));
@@ -532,14 +622,127 @@
       column.appendChild(h);
       if (!people.length) column.appendChild(el('p', 'empty', 'Nobody here'));
       people.forEach(function (a) {
-        var card = el('div', 'applicant');
+        var screening = (state.screenings || {})[a.id];
+        var card = el(screening ? 'button' : 'div', 'applicant');
+        if (screening) {
+          card.type = 'button';
+          card.setAttribute('aria-haspopup', 'dialog');
+          card.addEventListener('click', function () { openDetails(a.id); });
+        }
         card.appendChild(el('div', 'name', a.name));
         card.appendChild(el('div', 'role', a.role));
         if (slots[a.id]) card.appendChild(el('div', 'slot', 'Interview: ' + friendlySlot(slots[a.id])));
+        if (screening) card.appendChild(screenLine(a.id, screening));
         if (previous && before[a.id] !== cardKey(a, slots)) card.classList.add('changed');
         column.appendChild(card);
       });
+      if (col.stage === 'applied' && addingWithResume) {
+        var provisional = el('div', 'applicant');
+        provisional.appendChild(el('div', 'name', addingWithResume.name));
+        provisional.appendChild(el('div', 'role', addingWithResume.role));
+        var line = el('div', 'screen-line'); line.appendChild(el('span', '', 'Screening resume...'));
+        provisional.appendChild(line);
+        column.appendChild(provisional);
+        column.querySelector('.empty') && column.removeChild(column.querySelector('.empty'));
+      }
       boardEl.appendChild(column);
+    });
+  }
+
+  function statusOf(id, screening) { return rescreening[id] ? 'running' : screening.status; }
+
+  // The small line under a card's role: the fit badge and concern count, or the screening status.
+  function screenLine(id, screening) {
+    var line = el('div', 'screen-line');
+    var status = statusOf(id, screening);
+    if (status === 'running') { line.appendChild(el('span', '', 'Screening resume...')); return line; }
+    if (status === 'failed') {
+      line.appendChild(el('span', '', "Screening didn't finish"));
+      var retry = el('span', 'retry-btn', 'Retry');
+      retry.setAttribute('role', 'button');
+      retry.tabIndex = 0;
+      var go = function (ev) { ev.stopPropagation(); ev.preventDefault(); retryScreening(id); };
+      retry.addEventListener('click', go);
+      retry.addEventListener('keydown', function (ev) { if (ev.key === 'Enter' || ev.key === ' ') go(ev); });
+      line.appendChild(retry);
+      return line;
+    }
+    var r = screening.result;
+    line.appendChild(el('span', 'fit fit-' + r.fit, FIT_LABELS[r.fit] || r.fit));
+    var n = r.concerns.length;
+    line.appendChild(el('span', '', n ? n + ' concern' + (n === 1 ? '' : 's') : 'no concerns'));
+    if (r.injectionAttempt) line.appendChild(el('span', 'flag', 'flagged'));
+    return line;
+  }
+
+  function openDetails(id) {
+    var a = state.applicants.filter(function (x) { return x.id === id; })[0];
+    var screening = (state.screenings || {})[id];
+    if (!a || !screening) return;
+    detailsTitle.textContent = a.name + ', ' + a.role;
+    detailsSub.textContent = '';
+    detailsBody.textContent = '';
+    var status = statusOf(id, screening);
+    if (status !== 'done') {
+      detailsBody.appendChild(el('p', '', status === 'running' ? 'The resume is being screened. This usually takes a few seconds.' : "The screening didn't finish. Use Retry on the card to try again."));
+    } else {
+      var r = screening.result;
+      detailsSub.appendChild(el('span', 'fit fit-' + r.fit, FIT_LABELS[r.fit] || r.fit));
+      if (r.yearsRelevantExperience !== null && r.yearsRelevantExperience !== undefined) {
+        detailsSub.appendChild(el('span', '', 'About ' + r.yearsRelevantExperience + ' year' + (r.yearsRelevantExperience === 1 ? '' : 's') + ' of relevant experience'));
+      }
+      if (r.injectionAttempt) {
+        detailsBody.appendChild(el('p', 'injection', 'Flagged: this resume contains text aimed at an AI, such as instructions to rate the candidate highly or move them forward. It was ignored, and nothing was changed because of it.'));
+      }
+      detailsBody.appendChild(el('h4', '', 'Summary'));
+      detailsBody.appendChild(el('p', '', r.summary));
+      if (r.generalCriteria) detailsBody.appendChild(el('p', 'resume-note', 'No requirements are on file for this role, so general criteria were used.'));
+      detailsBody.appendChild(el('h4', '', 'Requirements'));
+      var reqs = el('ul');
+      r.requirements.forEach(function (q) {
+        var li = el('li');
+        li.appendChild(el('span', 'mark mark-' + q.status, { met: 'Met', not_met: 'Not met', unclear: 'Unclear' }[q.status] || q.status));
+        li.appendChild(document.createTextNode(q.requirement));
+        if (q.evidence) li.appendChild(el('span', 'evidence', q.evidence));
+        reqs.appendChild(li);
+      });
+      detailsBody.appendChild(reqs);
+      detailsBody.appendChild(el('h4', '', 'Concerns'));
+      if (!r.concerns.length) detailsBody.appendChild(el('p', 'empty', 'None found.'));
+      else {
+        var cs = el('ul');
+        r.concerns.forEach(function (c) {
+          var li = el('li', '', c.issue);
+          if (c.evidence) li.appendChild(el('span', 'evidence', c.evidence));
+          cs.appendChild(li);
+        });
+        detailsBody.appendChild(cs);
+      }
+      detailsBody.appendChild(el('h4', '', 'Check before moving forward'));
+      if (!r.toVerify.length) detailsBody.appendChild(el('p', 'empty', 'Nothing listed.'));
+      else {
+        var vs = el('ul', 'verify');
+        r.toVerify.forEach(function (v) { vs.appendChild(el('li', '', v)); });
+        detailsBody.appendChild(vs);
+      }
+    }
+    if (typeof detailsEl.showModal === 'function') detailsEl.showModal(); else detailsEl.setAttribute('open', '');
+  }
+
+  function closeDetails() { if (typeof detailsEl.close === 'function') detailsEl.close(); else detailsEl.removeAttribute('open'); }
+
+  function retryScreening(id) {
+    if (rescreening[id]) return;
+    rescreening[id] = true;
+    applyState(state);
+    api('POST', '/api/screen', { sandboxId: sandboxId, applicantId: id }).then(function (r) {
+      delete rescreening[id];
+      applyState(r.state);
+    }, function (err) {
+      delete rescreening[id];
+      if (err.message === 'unauthorized') return;
+      addMsg.className = 'form-msg err'; addMsg.textContent = err.message;
+      applyState(state);
     });
   }
 
@@ -560,7 +763,7 @@
         var reason = item.args && item.args.reason;
         box.appendChild(el('p', 'why', item.action === 'offer'
           ? 'The assistant wants to move this applicant to the Offer column.'
-          : 'Reason given: ' + (reason || 'none') + '. The applicant would move to the Rejected column.'));
+          : 'Reason given: ' + (trimReason(reason) || 'none') + '. The applicant would move to the Rejected column.'));
         var actions = el('div', 'approval-actions');
         var approve = el('button', 'btn btn-ok', 'Approve');
         var decline = el('button', 'btn btn-stop', 'Decline');
@@ -582,13 +785,14 @@
     });
   }
 
+  // Fallback only: the server sends each entry's sentence as e.text.
   function describeAudit(e) {
     var who = nameOf(e.applicantId);
     switch (e.action) {
       case 'added': return 'Added ' + (e.detail || who) + ' to the board.';
       case 'stage_changed':
         var parts = e.detail.split(' -> ');
-        return 'Moved ' + who + ' from ' + (STAGES[parts[0]] || parts[0]) + ' to ' + (STAGES[parts[1]] || parts[1]) + '.';
+        return 'Moved ' + who + ' from ' + (STAGE_NAMES[parts[0]] || parts[0]) + ' to ' + (STAGE_NAMES[parts[1]] || parts[1]) + '.';
       case 'booked': return 'Booked an interview for ' + who + ': ' + friendlySlot(e.detail) + '.';
       case 'rejection_requested': return 'The assistant asked to reject ' + who + (e.detail ? ' (' + e.detail + ')' : '') + '.';
       case 'approved': return 'A recruiter approved the ' + (/^offer/.test(e.detail) ? 'offer for ' : 'rejection of ') + who + '.';
@@ -607,13 +811,13 @@
       var t = el('time', '', new Date(e.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }));
       t.dateTime = e.at;
       li.appendChild(t);
-      li.appendChild(document.createTextNode(describeAudit(e)));
+      li.appendChild(document.createTextNode(e.text || describeAudit(e)));
       activityEl.appendChild(li);
     });
   }
 
   function applyState(next) {
-    var previous = state;
+    var previous = state === next ? null : state;
     state = next;
     renderBoard(previous);
     renderApprovals();
@@ -694,9 +898,13 @@
         appEl.classList.remove('hidden');
         startOverBtn.classList.remove('hidden');
         if (!logEl.childNodes.length) {
-          addSystem(r.created
-            ? 'You have a fresh sandbox with five fictional applicants. Try one of the examples below, or type your own request.'
-            : 'Welcome back. This is your sandbox from before; the assistant still remembers the earlier conversation.');
+          var history = (r.state && r.state.conversation) || [];
+          if (r.created) addSystem('You have a fresh sandbox with five fictional applicants. Try one of the examples below, or type your own request.');
+          else if (history.length) {
+            addSystem('Welcome back. This is your sandbox from before; here is the earlier conversation, and the assistant still remembers it.');
+            history.forEach(addHistory);
+            scrollLog();
+          } else addSystem('Welcome back. This is your sandbox from before. Try one of the examples below, or type your own request.');
         }
         state = null;
         applyState(r.state);
@@ -729,23 +937,79 @@
     if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); send(messageEl.value); }
   });
 
+  function readBase64(file) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function () { resolve(String(reader.result).replace(/^data:[^,]*,/, '')); };
+      reader.onerror = function () { reject(new Error('That file could not be read.')); };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function chosenResume() { return (resumeInput.files && resumeInput.files[0]) || sampleFile; }
+
+  resumeInput.addEventListener('change', function () { sampleFile = null; });
+
   addForm.addEventListener('submit', function (ev) {
     ev.preventDefault();
     var field = function (n) { return addForm.elements.namedItem(n).value.trim(); };
     var data = { sandboxId: sandboxId, name: field('name'), role: field('role'), notes: field('notes') };
     if (!data.name || !data.role) return;
-    addMsg.className = 'form-msg'; addMsg.textContent = 'Adding...';
-    var submit = addForm.querySelector('button'); submit.disabled = true;
-    api('POST', '/api/applicants', data).then(function (r) {
-      addMsg.className = 'form-msg ok';
-      addMsg.textContent = 'Added ' + r.applicant.name + ' (' + r.applicant.id + ') to Applied.';
+    var file = chosenResume();
+    if (file && file.size > MAX_RESUME_BYTES) { addMsg.className = 'form-msg err'; addMsg.textContent = 'The resume file is larger than 2 MB.'; return; }
+    if (file && !/\.(pdf|txt)$/i.test(file.name)) { addMsg.className = 'form-msg err'; addMsg.textContent = 'The resume must be a PDF or a .txt file.'; return; }
+    var submit = addForm.querySelector('button[type=submit]'); submit.disabled = true;
+    addMsg.className = 'form-msg'; addMsg.textContent = file ? 'Adding and screening the resume...' : 'Adding...';
+    (file ? readBase64(file).then(function (b64) {
+      data.resume = { filename: file.name, contentType: file.type || '', base64: b64 };
+      addingWithResume = { name: data.name, role: data.role };
+      applyState(state);
+    }) : Promise.resolve()).then(function () {
+      return api('POST', '/api/applicants', data);
+    }).then(function (r) {
+      addingWithResume = null;
+      addMsg.className = r.screening && !r.screening.ok ? 'form-msg err' : 'form-msg ok';
+      addMsg.textContent = 'Added ' + r.applicant.name + ' (' + r.applicant.id + ') to Applied.' +
+        (r.screening ? (r.screening.ok ? ' Resume screened: select the card to see the summary.' : " Screening didn't finish; use Retry on the card.") : '');
       addForm.reset();
+      sampleFile = null;
       applyState(r.state);
     }, function (err) {
+      if (addingWithResume) { addingWithResume = null; applyState(state); }
       if (err.message === 'unauthorized') return;
       addMsg.className = 'form-msg err'; addMsg.textContent = err.message;
     }).then(function () { submit.disabled = false; });
   });
+
+  // "Use a sample resume": fills in the name and role and attaches the file from docs/samples.
+  function useSample(sample, ext) {
+    addMsg.className = 'form-msg'; addMsg.textContent = 'Loading the sample...';
+    fetch('samples/' + sample.file + '.' + ext).then(function (res) {
+      if (!res.ok) throw new Error('The sample could not be loaded.');
+      return res.blob();
+    }).then(function (blob) {
+      var file = new File([blob], sample.file + '.' + ext, { type: ext === 'pdf' ? 'application/pdf' : 'text/plain' });
+      sampleFile = file;
+      try { var dt = new DataTransfer(); dt.items.add(file); resumeInput.files = dt.files; } catch (e) { /* sampleFile is used instead */ }
+      addForm.elements.namedItem('name').value = sample.name;
+      addForm.elements.namedItem('role').value = sample.role;
+      addForm.elements.namedItem('notes').value = '';
+      addMsg.className = 'form-msg ok'; addMsg.textContent = 'Sample loaded: ' + file.name + ' (fictional). Select Add applicant to add and screen it.';
+    }).catch(function (err) { addMsg.className = 'form-msg err'; addMsg.textContent = err.message; });
+  }
+
+  fetch('samples/samples.json').then(function (res) { return res.ok ? res.json() : []; }).then(function (list) {
+    list.forEach(function (sample) {
+      var b = el('button', '', sample.role + ' (' + sample.name + ')');
+      b.type = 'button';
+      b.title = 'Fill the form with the fictional ' + sample.role + ' sample, ' + sample.file + '.pdf';
+      b.addEventListener('click', function () { useSample(sample, 'pdf'); });
+      samplesEl.appendChild(b);
+    });
+  }, function () { /* the buttons are optional */ });
+
+  $('details-close').addEventListener('click', closeDetails);
+  detailsEl.addEventListener('click', function (ev) { if (ev.target === detailsEl) closeDetails(); });
 
   startOverBtn.addEventListener('click', function () {
     if (busy) return;

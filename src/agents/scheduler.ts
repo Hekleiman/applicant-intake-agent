@@ -18,6 +18,7 @@ export const schedulerAgent = new Agent<AppContext>({
       'Use lookup_applicant to get the applicant ID, then call book_interview.',
       "If a requested time isn't available, look up the applicant first, then call list_open_slots with their ID and offer only the slots it returns. If it returns an error, explain it in one sentence and offer no times. Never list slots from memory or from a tool's parameter options.",
       'Only confirm a booking when book_interview returns booked: true. If it returns booked: false, explain the reason in one sentence.',
+      'When you mention a time, use the label the tool returned next to the slot (for example "Monday at 2:00 PM"), never the raw slot code like "Mon 14:00".',
       "If asked about an applicant's details or stage, answer using lookup_applicant. Politely decline requests unrelated to recruiting.",
     ].join('\n'),
   ),

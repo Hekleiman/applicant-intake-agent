@@ -1,7 +1,7 @@
 import { tool, type RunContext } from '@openai/agents';
 import { z } from 'zod';
 import type { AppContext } from '../context.js';
-import { SLOTS } from '../data/slots.js';
+import { SLOTS, slotLabel, withLabel } from '../data/slots.js';
 import { storeFor } from '../data/storeFor.js';
 
 export const bookInterview = tool({
@@ -27,11 +27,11 @@ export const bookInterview = tool({
       if (booking.ok) {
         await store.setStage(applicant.id, 'interview_scheduled');
         await store.addAudit(applicant.id, 'booked', slot);
-        result = { booked: true, applicantId: applicant.id, name: applicant.name, slot };
+        result = { booked: true, applicantId: applicant.id, name: applicant.name, slot, label: slotLabel(slot) };
       } else if (booking.reason === 'already booked') {
-        result = { booked: false, reason: 'already booked', currentSlot: booking.currentSlot };
+        result = { booked: false, reason: 'already booked', currentSlot: booking.currentSlot, currentSlotLabel: slotLabel(booking.currentSlot) };
       } else {
-        result = { booked: false, reason: 'slot taken', openSlots: await store.openSlots() };
+        result = { booked: false, reason: 'slot taken', openSlots: (await store.openSlots()).map(withLabel) };
       }
     }
 

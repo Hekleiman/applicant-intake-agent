@@ -105,6 +105,8 @@ async function resolveApprovals(result: Result): Promise<{ result: Result; resum
       if (action === 'rejection') {
         const reason = (parsedArgs as { reason?: unknown } | null)?.reason;
         await memoryStore.addAudit(applicantId, 'rejection_requested', typeof reason === 'string' ? reason : '');
+      } else {
+        await memoryStore.addAudit(applicantId, 'offer_requested', 'offer');
       }
       record('approval_requested', {
         agent: item.agent.name,

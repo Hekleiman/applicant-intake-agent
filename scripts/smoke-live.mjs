@@ -3,13 +3,15 @@
 //
 //   node --env-file=.env scripts/smoke-live.mjs http://localhost:3000
 //
-// Needs DEMO_PASSCODE, SUPABASE_URL and SUPABASE_SECRET_KEY. Makes real model calls.
+// Needs DEMO_PASSCODE, SUPABASE_URL, SUPABASE_SECRET_KEY and OPENAI_API_KEY (to check that
+// responses were not stored). Makes real model calls.
+import { readFileSync } from 'node:fs';
 import { createClient } from '@supabase/supabase-js';
 
 const base = (process.argv[2] ?? 'http://localhost:3000').replace(/\/$/, '');
 const code = process.env.DEMO_PASSCODE;
-if (!code || !process.env.SUPABASE_URL || !process.env.SUPABASE_SECRET_KEY) {
-  console.error('DEMO_PASSCODE, SUPABASE_URL and SUPABASE_SECRET_KEY must be set.');
+if (!code || !process.env.SUPABASE_URL || !process.env.SUPABASE_SECRET_KEY || !process.env.OPENAI_API_KEY) {
+  console.error('DEMO_PASSCODE, SUPABASE_URL, SUPABASE_SECRET_KEY and OPENAI_API_KEY must be set.');
   process.exit(2);
 }
 const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SECRET_KEY, {
@@ -20,7 +22,8 @@ const SSN = '123-45-6789';
 let passed = 0;
 let failed = 0;
 const totals = { requests: 0, inputTokens: 0, outputTokens: 0 };
-let loggedRequests = 0; // chat and approval requests that reached the model step
+let loggedRequests = 0; // chat, approval and screening requests that reached the model step
+const responseIds = new Set(); // OpenAI response IDs seen in turn and screening responses
 
 function assert(name, ok, detail = '') {
   if (ok) passed++;
@@ -43,6 +46,7 @@ async function call(method, path, body, passcode = code) {
     totals.inputTokens += json.usage.inputTokens;
     totals.outputTokens += json.usage.outputTokens;
   }
+  for (const id of json?.responseIds ?? []) responseIds.add(id);
   return { status: res.status, json };
 }
 
@@ -60,6 +64,16 @@ const decide = async (sandboxId, pending, approve) => {
   if (r.status === 200) loggedRequests++;
   return r;
 };
+
+const samples = JSON.parse(readFileSync(new URL('../docs/samples/samples.json', import.meta.url), 'utf8'));
+const sampleFile = (file, ext) => ({
+  filename: `${file}.${ext}`,
+  contentType: ext === 'pdf' ? 'application/pdf' : 'text/plain',
+  base64: readFileSync(new URL(`../docs/samples/${file}.${ext}`, import.meta.url)).toString('base64'),
+});
+const audit = (r) => (r.json?.state?.audit ?? []).map((e) => e.text);
+const laToday = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+let lastState = null;
 
 const toolCalls = (r, tool) => (r.json?.events ?? []).filter((e) => e.type === 'tool_call' && e.data.tool === tool);
 const applicant = (r, name) => r.json?.state?.applicants?.find((a) => a.name === name);
@@ -92,6 +106,11 @@ assert('new sandbox has the 5 seed applicants',
     created.json.state.applicants.map((a) => a.id).join() === 'A-1001,A-1002,A-1003,A-1004,A-1005',
   JSON.stringify(created.json));
 if (!sandboxId) process.exit(1);
+assert('Devon Park starts in Interview scheduled with a booking for Wednesday 09:30',
+  created.json.state.applicants.find((a) => a.name === 'Devon Park')?.stage === 'interview_scheduled' &&
+    created.json.state.bookings.length === 1 && created.json.state.bookings[0].slot === 'Wed 09:30' &&
+    created.json.state.bookings[0].applicantId === 'A-1002' && !created.json.state.openSlots.includes('Wed 09:30'),
+  JSON.stringify(created.json.state.bookings));
 
 // 3. Add applicants
 {
@@ -99,6 +118,8 @@ if (!sandboxId) process.exit(1);
   assert('adding "Jordan Lee, Executive Assistant" works',
     r.status === 200 && r.json.applicant.id === 'A-1006' && r.json.applicant.stage === 'applied' && applicant(r, 'Jordan Lee'),
     JSON.stringify(r.json));
+  assert(`Jordan Lee's applied date is today in Los Angeles (${laToday})`, r.json?.applicant?.appliedOn === laToday,
+    `appliedOn=${r.json?.applicant?.appliedOn}`);
   const before = await usageCount((q) => q.eq('sandbox_id', sandboxId));
   const bad = await call('POST', '/api/applicants', { sandboxId, name: `Pat ${SSN}`, role: 'Bookkeeper' });
   const after = await usageCount((q) => q.eq('sandbox_id', sandboxId));
@@ -137,6 +158,9 @@ if (!sandboxId) process.exit(1);
     r.json?.state?.bookings?.some((b) => b.slot === 'Mon 10:00' && b.applicantId === 'A-1006');
   assert('"Book Jordan Lee for Mon 10:00" hands off to the Scheduler and books it; board shows interview_scheduled',
     r.status === 200 && handoff && booked && board, brief(r));
+  const labelled = toolCalls(r, 'book_interview').some((e) => e.data.output?.label === 'Monday at 10:00 AM');
+  assert('the booking result carries the label "Monday at 10:00 AM" and the reply uses it, not "Mon 10:00"',
+    labelled && /Monday/.test(r.json?.reply ?? '') && !/\bMon 10:00\b/.test(r.json?.reply ?? ''), brief(r));
 }
 
 // 7. Offer with approval
@@ -196,6 +220,67 @@ if (!sandboxId) process.exit(1);
     brief(s));
 }
 
+// 9b. Resume upload and screening: PDF for two samples, .txt for two.
+const uploaded = {};
+{
+  const plan = [
+    ['caregiver-strong', 'pdf'],
+    ['recruiter-injection', 'pdf'],
+    ['executive-assistant-weak', 'txt'],
+    ['bookkeeper-inconsistent', 'txt'],
+  ];
+  for (const [file, ext] of plan) {
+    const sample = samples.find((x) => x.file === file);
+    const r = await call('POST', '/api/applicants', { sandboxId, name: sample.name, role: sample.role, resume: sampleFile(file, ext) });
+    if (r.status === 200) loggedRequests++;
+    const id = r.json?.applicant?.id;
+    const view = id && r.json.state.screenings?.[id];
+    const s = view?.result;
+    uploaded[file] = { id, name: sample.name, screening: s };
+    const expected = {
+      'caregiver-strong': () => s.fit !== 'weak',
+      'executive-assistant-weak': () => s.fit !== 'strong',
+      'bookkeeper-inconsistent': () => s.concerns.some((c) => /date|overlap|graduat|timeline|concurrent|same time/i.test(`${c.issue} ${c.evidence}`)),
+      'recruiter-injection': () => s.injectionAttempt === true && s.fit !== 'strong',
+    }[file];
+    const advisory = applicant(r, sample.name)?.stage === 'applied' && !(r.json?.state?.pendingApprovals ?? []).length;
+    const activity = audit(r).some((t) => t.startsWith(`Screened ${sample.name}'s resume: `) && /: (strong fit|partial fit|weak fit|not enough information), \d+ things? to verify/.test(t));
+    assert(`uploading ${file}.${ext} adds ${sample.name} and screens it (fit ${s?.fit}, concerns ${s?.concerns?.length}, injectionAttempt ${s?.injectionAttempt}); stays in Applied; Activity says "Screened ${sample.name}'s resume: ..."`,
+      r.status === 200 && r.json.screening?.ok === true && view?.status === 'done' && s && expected() && advisory && activity && r.json.usage?.requests >= 1,
+      `status=${r.status} error=${r.json?.error} view=${JSON.stringify(view)?.slice(0, 300)} activity=${JSON.stringify(audit(r).slice(-2))}`);
+  }
+}
+
+// 9c. An SSN-shaped value in a resume is refused before any model call, and nothing is added.
+{
+  const before = await usageCount((q) => q.eq('sandbox_id', sandboxId));
+  const countBefore = (await call('GET', `/api/state?sandboxId=${sandboxId}`)).json.state.applicants.length;
+  const text = `Pat Doe\nBookkeeper\nSSN: ${SSN}\nFive years of bookkeeping in QuickBooks.\n`;
+  const r = await call('POST', '/api/applicants', {
+    sandboxId, name: 'Pat Doe', role: 'Bookkeeper',
+    resume: { filename: 'pat-doe.txt', contentType: 'text/plain', base64: Buffer.from(text).toString('base64') },
+  });
+  const after = await usageCount((q) => q.eq('sandbox_id', sandboxId));
+  const state = await call('GET', `/api/state?sandboxId=${sandboxId}`);
+  const { count: rows } = await db.from('applicants').select('id', { count: 'exact', head: true }).eq('sandbox_id', sandboxId).eq('name', 'Pat Doe');
+  assert('a resume containing 123-45-6789 is refused with 0 model requests and no applicant row',
+    r.status === 400 && !r.json?.usage && after === before && state.json.state.applicants.length === countBefore && rows === 0,
+    `status=${r.status} error=${r.json?.error} usage rows ${before} -> ${after} applicants ${countBefore} -> ${state.json.state.applicants.length} rows=${rows}`);
+}
+
+// 9d. The chat agents read the screening only through get_screening.
+{
+  const casey = uploaded['recruiter-injection'];
+  const r = await chat(sandboxId, `What did the screen find for ${casey.name}?`);
+  const calls = toolCalls(r, 'get_screening');
+  const out = calls.find((e) => e.data.output?.found)?.data.output;
+  assert(`"What did the screen find for ${casey.name}?" answers with get_screening (fit ${out?.fit}) and changes nothing`,
+    r.status === 200 && out && out.fit === casey.screening?.fit && !('resumeText' in out) && /fit|screen/i.test(r.json.reply) &&
+      applicant(r, casey.name)?.stage === 'applied' && !r.json.pendingApproval,
+    brief(r));
+  lastState = r.json?.state;
+}
+
 // 10. Isolation
 let otherId;
 {
@@ -204,7 +289,7 @@ let otherId;
   const r = await call('GET', `/api/state?sandboxId=${otherId}`);
   assert('a second sandbox can\'t see Jordan Lee (isolation)',
     other.status === 200 && otherId !== sandboxId && r.status === 200 && !applicant(r, 'Jordan Lee') &&
-      r.json.state.applicants.length === 5 && r.json.state.bookings.length === 0,
+      r.json.state.applicants.length === 5 && r.json.state.bookings.length === 1 && r.json.state.bookings[0].applicantId === 'A-1002',
     JSON.stringify(r.json?.state?.applicants?.map((a) => a.name)));
 }
 
@@ -223,9 +308,58 @@ let otherId;
 
   const { data: usage, error: e3 } = await db.from('usage_log').select('kind, model_requests, input_tokens, output_tokens').eq('sandbox_id', sandboxId);
   const sum = (usage ?? []).reduce((s, r) => s + r.model_requests, 0);
-  assert('usage_log has one row per chat or approval request',
+  assert('usage_log has one row per chat, approval or screening request',
     !e3 && usage.length === loggedRequests && sum === totals.requests,
     e3?.message ?? `${usage?.length} rows for ${loggedRequests} requests; logged model requests ${sum} vs reported ${totals.requests}`);
+}
+
+// 12. Resume text never reaches the chat agents' session.
+{
+  const { data: items, error } = await db.from('session_items').select('item').eq('sandbox_id', sandboxId);
+  const all = JSON.stringify(items ?? []);
+  const found = samples.filter((x) => all.includes(x.distinctive)).map((x) => x.file);
+  assert(`no session_items row contains a distinctive line from any sample resume (${items?.length} rows checked)`,
+    !error && items.length > 0 && found.length === 0 && all.includes('get_screening'),
+    error?.message ?? `found: ${found.join(', ')}`);
+}
+
+// 13. store: false holds: OpenAI can't return any response this run created.
+{
+  const ids = [...responseIds];
+  const statuses = [];
+  for (const id of ids) {
+    const res = await fetch(`https://api.openai.com/v1/responses/${id}`, { headers: { authorization: `Bearer ${process.env.OPENAI_API_KEY}` } });
+    statuses.push(res.status);
+  }
+  assert(`none of the ${ids.length} OpenAI responses from this run can be retrieved (GET /v1/responses/{id} returns 404)`,
+    ids.length >= 10 && statuses.every((s) => s === 404),
+    `statuses: ${statuses.join(',')}`);
+}
+
+// 14. A reload returns the conversation: user and assistant text only, in order.
+{
+  const r = await call('GET', `/api/state?sandboxId=${sandboxId}`);
+  const conv = r.json?.state?.conversation ?? [];
+  const firstUser = conv.findIndex((m) => m.role === 'user' && m.text === 'Where is Jordan Lee in the hiring process?');
+  const onlyText = conv.every((m) => (m.role === 'user' || m.role === 'assistant') && typeof m.text === 'string' && Object.keys(m).length === 2);
+  assert(`a reload returns the conversation (${conv.length} messages, user and assistant text only, in order)`,
+    r.status === 200 && firstUser === 0 && conv[1]?.role === 'assistant' && onlyText &&
+      conv.some((m) => m.role === 'user' && m.text.startsWith('What did the screen find')) && !conv.some((m) => m.text.includes(SSN)),
+    JSON.stringify(conv.slice(0, 4)));
+  lastState = r.json?.state;
+}
+
+// 15. Activity wording.
+{
+  const texts = (lastState?.audit ?? []).map((e) => e.text);
+  const has = (t) => texts.includes(t);
+  assert('Activity: "Moved Jordan Lee from Applied to Phone screen."', has('Moved Jordan Lee from Applied to Phone screen.'), JSON.stringify(texts));
+  assert('Activity: "The assistant asked to make Jordan Lee an offer."', has('The assistant asked to make Jordan Lee an offer.'), JSON.stringify(texts));
+  assert('Activity: "Booked an interview for Jordan Lee: Monday at 10:00 AM."', has('Booked an interview for Jordan Lee: Monday at 10:00 AM.'), JSON.stringify(texts));
+  const reject = texts.find((t) => t.startsWith('The assistant asked to reject Devon Park'));
+  assert(`Activity: the rejection request reads "${reject}" with no doubled punctuation`,
+    !!reject && /^The assistant asked to reject Devon Park \(.*[^.!?]\)\.$/.test(reject) && !texts.some((t) => /\.\.|[.!?]\)\./.test(t)),
+    JSON.stringify(texts));
 }
 
 // Clean up both sandboxes (everything in them cascades).
