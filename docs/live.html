@@ -891,9 +891,17 @@
       .then(function () { setBusy(false); });
   }
 
+  // A sandbox made before the current seed (for example before Devon Park had a booking) is
+  // replaced quietly with a fresh one, the same as Start over.
+  function outdated(s) { return !s || !s.seedVersion || (s.currentSeedVersion && s.seedVersion < s.currentSeedVersion); }
+
   function start() {
     setBusy(true);
     return api('POST', '/api/sandbox', sandboxId ? { sandboxId: sandboxId } : {})
+      .then(function (r) {
+        if (!outdated(r.state)) return r;
+        return api('POST', '/api/reset', { sandboxId: r.sandboxId }).then(function (fresh) { fresh.created = true; return fresh; });
+      })
       .then(function (r) {
         sandboxId = r.sandboxId;
         save(SANDBOX_KEY, sandboxId);
@@ -1003,7 +1011,7 @@
 
   fetch('samples/samples.json').then(function (res) { return res.ok ? res.json() : []; }).then(function (list) {
     list.forEach(function (sample) {
-      var b = el('button', '', sample.role + ' (' + sample.name + ')');
+      var b = el('button', '', sample.label || (sample.role + ' (' + sample.name + ')'));
       b.type = 'button';
       b.title = 'Fill the form with the fictional ' + sample.role + ' sample, ' + sample.file + '.pdf';
       b.addEventListener('click', function () { useSample(sample, 'pdf'); });

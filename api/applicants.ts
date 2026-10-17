@@ -42,13 +42,14 @@ export const POST = endpoint('applicants', async (request) => {
   const ip = resumeText !== null ? ipHash(request) : null;
   if (ip) await checkLimits(body.sandboxId, ip);
 
-  const applicant = await store.addApplicant({ name: body.name, role: body.role, notes: body.notes, resumeText });
+  const source = resume && { truncated: resume.truncated, originalChars: resume.originalChars };
+  const applicant = await store.addApplicant({ name: body.name, role: body.role, notes: body.notes, resumeText, resumeSource: source ?? undefined });
   await store.addAudit(applicant.id, 'added', `${applicant.name}, ${applicant.role}`);
 
   let screening = null;
-  if (resume && ip) {
+  if (resume && source && ip) {
     const usageId = await startUsage(body.sandboxId, ip, 'screening');
-    screening = await runScreening(body.sandboxId, applicant.id, applicant.role, resume.text, { truncated: resume.truncated, originalChars: resume.originalChars }, usageId);
+    screening = await runScreening(body.sandboxId, applicant.id, applicant.role, resume.text, source, usageId);
   }
   return json({
     applicant,

@@ -26,7 +26,8 @@ export const ScreeningSchema = z.object({
 export type Screening = z.infer<typeof ScreeningSchema>;
 
 // What extraction did to the resume before the Screener saw it, recorded by our server.
-// originalChars is null when it isn't known (a retry only has the stored, already cut text).
+// Recorded at upload and kept for retries. originalChars is null when it isn't known (a resume
+// uploaded before the upload-time record existed, retried with only its stored text).
 export type ResumeSource = { truncated: boolean; originalChars: number | null };
 
 // What is stored in applicants.screening: the model's output plus which requirements were used and

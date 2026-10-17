@@ -1,4 +1,4 @@
-import type { StoredScreening } from '../agents/screener.js';
+import type { ResumeSource, StoredScreening } from '../agents/screener.js';
 import { check, db, UNIQUE_VIOLATION } from '../server/supabase.js';
 import type { Applicant } from './applicants.js';
 import { SLOTS, isSlot, type Slot } from './slots.js';
@@ -87,6 +87,9 @@ export class SupabaseStore implements Store {
           applied_on: todayInTimeZone(),
           notes: input.notes,
           resume_text: input.resumeText ?? null,
+          // Written by our server at upload, before any model call, so a retry after a failed
+          // screening still knows whether the resume was cut and how long it was.
+          screening: input.resumeText != null && input.resumeSource ? { source: input.resumeSource } : null,
         })
         .select(APPLICANT_COLUMNS)
         .single();
@@ -158,6 +161,9 @@ export class SupabaseStore implements Store {
       .from('audit_log')
       .select('at, applicant_id, action, detail')
       .eq('sandbox_id', this.sandboxId)
+      // By time, then by insert order: a decision's row is written after its result but carries
+      // the time of the click, so it sorts before the result.
+      .order('at', { ascending: false })
       .order('id', { ascending: false });
     if (limit !== undefined) query = query.limit(limit);
     const rows = check(await query, 'list audit log') as {
@@ -216,24 +222,36 @@ export class SupabaseStore implements Store {
     return row?.resume_text ?? null;
   }
 
+  // What extraction recorded at upload: the screening column's server-written source block.
+  // Null for a resume uploaded before the block existed.
+  async getResumeSource(id: string): Promise<ResumeSource | null> {
+    const row = check(
+      await db().from('applicants').select('screening').eq('sandbox_id', this.sandboxId).eq('id', id.trim()).maybeSingle(),
+      'get resume source',
+    ) as { screening: ScreeningColumn | null } | null;
+    return row?.screening?.source ?? null;
+  }
+
   // A finished screening, or null after a failed attempt; either way screened_at records when.
-  async saveScreening(id: string, screening: StoredScreening | null) {
+  // The source block is written back with it, so it survives a failure.
+  async saveScreening(id: string, screening: StoredScreening | null, source: ResumeSource) {
     check(
       await db()
         .from('applicants')
-        .update({ screening, screened_at: new Date().toISOString() })
+        .update({ screening: { ...screening, source }, screened_at: new Date().toISOString() })
         .eq('sandbox_id', this.sandboxId)
         .eq('id', id.trim()),
       'save screening',
     );
   }
 
-  // Before a retry: back to "not attempted yet", so other tabs show it as running.
-  async clearScreening(id: string) {
+  // Before a retry: back to "not attempted yet", so other tabs show it as running. Keeps the
+  // source block.
+  async clearScreening(id: string, source: ResumeSource) {
     check(
       await db()
         .from('applicants')
-        .update({ screening: null, screened_at: null })
+        .update({ screening: { source }, screened_at: null })
         .eq('sandbox_id', this.sandboxId)
         .eq('id', id.trim()),
       'clear screening',
@@ -241,10 +259,19 @@ export class SupabaseStore implements Store {
   }
 }
 
-type ScreeningRow = { id: string; screening: StoredScreening | null; screened_at: string | null };
+// applicants.screening holds the model's result (when a screening finished) plus the server's
+// source block. A row with only the source block has no screening yet.
+type ScreeningColumn = Partial<StoredScreening> & { source?: ResumeSource };
+type ScreeningRow = { id: string; screening: ScreeningColumn | null; screened_at: string | null };
+
+const screeningOf = (column: ScreeningColumn | null): StoredScreening | null => {
+  if (!column || column.fit === undefined) return null;
+  const { source: _source, ...screening } = column;
+  return screening as StoredScreening;
+};
 
 const toScreening = (row: ScreeningRow, withResume: Set<string>): ScreeningRecord => ({
   hasResume: withResume.has(row.id),
-  screening: row.screening,
+  screening: screeningOf(row.screening),
   screenedAt: row.screened_at,
 });

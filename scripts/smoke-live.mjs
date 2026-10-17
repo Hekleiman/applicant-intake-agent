@@ -112,6 +112,22 @@ assert('Devon Park starts in Interview scheduled with a booking for Wednesday 09
     created.json.state.bookings[0].applicantId === 'A-1002' && !created.json.state.openSlots.includes('Wed 09:30'),
   JSON.stringify(created.json.state.bookings));
 
+// 2b. Seed version: a new sandbox is on the current seed; one created before the current seed went
+// live reports the older version, which the page replaces with a fresh sandbox.
+{
+  const st = created.json.state;
+  assert(`a new sandbox reports seed version ${st.seedVersion} of ${st.currentSeedVersion}`,
+    Number.isInteger(st.currentSeedVersion) && st.currentSeedVersion >= 2 && st.seedVersion === st.currentSeedVersion,
+    JSON.stringify({ seedVersion: st.seedVersion, currentSeedVersion: st.currentSeedVersion }));
+  const old = (await call('POST', '/api/sandbox', {})).json?.sandboxId;
+  await db.from('sandboxes').update({ created_at: '2026-10-16T23:00:00Z' }).eq('id', old);
+  const r = await call('GET', `/api/state?sandboxId=${old}`);
+  assert('a sandbox created before seed version 2 went live (2026-10-16 23:00 UTC) reports seed version 1',
+    r.status === 200 && r.json.state.seedVersion === 1 && r.json.state.currentSeedVersion === st.currentSeedVersion,
+    JSON.stringify({ status: r.status, seedVersion: r.json?.state?.seedVersion }));
+  await db.from('sandboxes').delete().eq('id', old);
+}
+
 // 3. Add applicants
 {
   const r = await call('POST', '/api/applicants', { sandboxId, name: 'Jordan Lee', role: 'Executive Assistant', notes: 'Added by the smoke test.' });
@@ -395,6 +411,11 @@ let otherId;
   assert('Activity: "Booked an interview for Jordan Lee: Monday at 10:00 AM."', has('Booked an interview for Jordan Lee: Monday at 10:00 AM.'), JSON.stringify(texts));
   assert('Activity: "A recruiter approved the offer for Jordan Lee." (written once the decision took effect)', has('A recruiter approved the offer for Jordan Lee.'), JSON.stringify(texts));
   assert('Activity: "A recruiter declined the rejection of Devon Park." (written once the decision took effect)', has('A recruiter declined the rejection of Devon Park.'), JSON.stringify(texts));
+  const approvedAt = texts.indexOf('A recruiter approved the offer for Jordan Lee.');
+  const movedAt = texts.indexOf('Moved Jordan Lee from Interview scheduled to Offer.');
+  const askedAt = texts.indexOf('The assistant asked to make Jordan Lee an offer.');
+  assert('Activity reads requested, approved, result: the offer request, then the approval, then the move to Offer',
+    askedAt >= 0 && askedAt < approvedAt && approvedAt < movedAt, JSON.stringify(texts));
   const reject = texts.find((t) => t.startsWith('The assistant asked to reject Devon Park'));
   assert(`Activity: the rejection request reads "${reject}" with no doubled punctuation`,
     !!reject && /^The assistant asked to reject Devon Park \(.*[^.!?]\)\.$/.test(reject) && !texts.some((t) => /\.\.|[.!?]\)\./.test(t)),

@@ -1,4 +1,4 @@
-import type { StoredScreening } from '../agents/screener.js';
+import type { ResumeSource, StoredScreening } from '../agents/screener.js';
 import type { Applicant } from './applicants.js';
 import type { Slot } from './slots.js';
 
@@ -25,8 +25,8 @@ export type AuditEntry = {
 export type Booking = { slot: Slot; applicantId: string };
 
 // resumeText is the extracted text of an uploaded resume (live sandbox only). It is stored for
-// the Screener and never returned by any tool.
-export type NewApplicant = { name: string; role: string; notes: string; resumeText?: string | null };
+// the Screener and never returned by any tool. resumeSource is what extraction recorded about it.
+export type NewApplicant = { name: string; role: string; notes: string; resumeText?: string | null; resumeSource?: ResumeSource };
 
 // An applicant's resume screening. screening is null until a screening finishes; screenedAt is
 // the time of the last attempt, so a resume with screenedAt set and no screening means the last

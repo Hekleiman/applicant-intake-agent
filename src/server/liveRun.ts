@@ -204,7 +204,8 @@ export type Decision = { callId: string; approve: boolean };
 // Test only, ignored in production. LIVE_TEST_FAIL_RESUME makes an approval fail on purpose:
 // before_decision fails just before the resumed run starts (nothing has taken effect);
 // after_decision fails at the resumed run's first model call, after the approved tool ran (or the
-// decline was recorded) and before the reply.
+// decline was recorded) and before the reply; audit_write lets the resumed run finish, reply
+// included, and fails the first write of the decision's audit row.
 const testFailMode = (): string | undefined => (isProduction() ? undefined : process.env.LIVE_TEST_FAIL_RESUME);
 
 function testFailureHook(): { callModelInputFilter?: CallModelInputFilter } {
@@ -239,6 +240,10 @@ export async function resolveApproval(
   pausedRunId: string,
   decisions: Decision[],
   usageId: number,
+  // When the human clicked Approve or Decline: the moment the request arrived. The decision's
+  // audit row carries this time, so Activity reads requested, decided, result in true order even
+  // though the row is written after the result.
+  decidedAt: string,
 ): Promise<TurnResponse> {
   const req = newRequest(sandboxId);
 
@@ -284,11 +289,17 @@ export async function resolveApproval(
   // The audit log is append-only. A decision's "approved" or "declined" row is written only once
   // that decision has taken effect: after the resumed run completes, or when the recovery check
   // finds its result in the session. A decision that never took effect gets no row.
+  let failAuditWrite = testFailMode() === 'audit_write';
   const auditDecisions = async (callIds: Set<string>) => {
+    if (failAuditWrite) {
+      failAuditWrite = false;
+      throw new Error('LIVE_TEST_FAIL_RESUME: simulated failure writing the audit row');
+    }
     const rows = decided
       .filter((d) => callIds.has(d.callId))
       .map((d) => ({
         sandbox_id: sandboxId,
+        at: decidedAt,
         applicant_id: d.applicantId,
         action: d.approve ? 'approved' : 'declined',
         detail: `${d.action} ${d.approve ? 'approved' : 'declined'} by a human`,
@@ -297,7 +308,17 @@ export async function resolveApproval(
   };
 
   let out: { reply: string; agent: string | null; pending: PendingApproval | null };
-  let result: Result;
+  let result: Result | undefined;
+  let state: RunState<AppContext, Agent<AppContext, any>> | undefined;
+  // Counts the resumed run's model calls whichever way the request ends. The state's usage covers
+  // only this resume: the context passed to fromStringWithContext starts with empty usage.
+  let usageCounted = false;
+  const addResumeUsage = () => {
+    if (usageCounted) return;
+    usageCounted = true;
+    if (result) addMain(req, result);
+    else if (state) addUsage(req.usage, fromSdkUsage(state.usage));
+  };
   try {
     // No withTrace here. The restored RunState carries the trace of the chat turn that paused it
     // (RunState._trace), and the runner resumes inside that trace
@@ -307,7 +328,7 @@ export async function resolveApproval(
     //
     // The stored state is trusted because it never left the server. The context is rebuilt
     // from plain data, so no client or key could have been serialized into it.
-    const state = await RunState.fromStringWithContext(startingAgent, row.run_state, new RunContext<AppContext>(req.context));
+    state = await RunState.fromStringWithContext(startingAgent, row.run_state, new RunContext<AppContext>(req.context));
     for (const item of state.getInterruptions()) {
       const approve = byCall.get(callIdOf(item));
       if (approve) state.approve(item);
@@ -353,6 +374,7 @@ export async function resolveApproval(
         );
         await markResolved();
         await auditDecisions(done);
+        addResumeUsage();
         console.error(`[api] approval ${row.id} failed after its decision took effect; resolved without a reply:`, error instanceof Error ? error.message : error);
         const said = await Promise.all(
           decided
@@ -370,6 +392,7 @@ export async function resolveApproval(
     } catch (recoveryError) {
       console.error(`[api] recovering approval ${row.id} failed:`, recoveryError instanceof Error ? recoveryError.message : recoveryError);
     }
+    addResumeUsage();
     await finishUsage(usageId, req.usage);
     flushTraces();
     if (error instanceof MaxTurnsExceededError) {
@@ -379,9 +402,9 @@ export async function resolveApproval(
   }
 
   try {
-    addMain(req, result);
+    addResumeUsage();
     await markResolved();
-    out = await settle(req, result);
+    out = await settle(req, result!);
   } finally {
     await finishUsage(usageId, req.usage);
     flushTraces();

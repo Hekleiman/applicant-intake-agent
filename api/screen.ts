@@ -14,10 +14,11 @@ export const POST = endpoint('screen', async (request) => {
   const { sandboxId, applicantId } = await readBody(request, Body);
   await requireSandbox(sandboxId);
   const store = new SupabaseStore(sandboxId);
-  const [applicant, record, resumeText] = await Promise.all([
+  const [applicant, record, resumeText, stored] = await Promise.all([
     store.getApplicant(applicantId),
     store.getScreening(applicantId),
     store.getResumeText(applicantId),
+    store.getResumeSource(applicantId),
   ]);
   if (!applicant || !record) throw new HttpError(404, 'That applicant is not in this sandbox.');
   if (!resumeText) throw new HttpError(400, 'This applicant has no resume to screen.');
@@ -26,11 +27,11 @@ export const POST = endpoint('screen', async (request) => {
   const ip = ipHash(request);
   await checkLimits(sandboxId, ip);
   const usageId = await startUsage(sandboxId, ip, 'screening');
-  await store.clearScreening(applicantId);
-  // Only the stored text is left, already cut, so a full 20,000 characters means it was cut (or
-  // was exactly that long) and the original length is unknown.
-  const source = { truncated: resumeText.length >= MAX_RESUME_CHARS, originalChars: null };
-  const screening = await runScreening(sandboxId, applicant.id, applicant.role, resumeText, source, usageId);
+  // The facts recorded at upload. Only a resume uploaded before they were recorded falls back to
+  // the stored text, where a full 20,000 characters means it was cut (or was exactly that long).
+  const source = stored ?? { truncated: resumeText.length >= MAX_RESUME_CHARS, originalChars: null };
+  await store.clearScreening(applicantId, source);
+  const screening = await runScreening(sandboxId, applicant.id, applicant.role, resumeText, source, usageId, 'retry');
   return json({
     screening: { ok: screening.ok },
     usage: screening.usage,

@@ -27,6 +27,32 @@ export type PendingApproval = { pausedRunId: string; createdAt: string; interrup
 // and the recordings have no bookings and stay as they are.
 const SEED_BOOKINGS: { slot: Slot; applicantId: string }[] = [{ slot: 'Wed 09:30', applicantId: 'A-1002' }];
 
+// The version of the seed data a new sandbox gets. Bump it, and add the time the new seed went
+// live in production below, whenever the seed changes. The version is worked out from the
+// sandbox's created_at, so it needs no column: a sandbox created before a version went live has
+// the older seed. The page starts a fresh sandbox (same as Start over) when its sandbox's version
+// is older than SEED_VERSION.
+//   1: the original five applicants, no bookings.
+//   2: Devon Park holds Wed 09:30 (commit b2d225a, production deployment Ready at 00:52:56 UTC).
+export const SEED_VERSION = 2;
+const SEED_LIVE_AT: Record<number, string> = { 2: '2026-10-17T00:52:57Z' };
+
+export function seedVersionOf(createdAt: string): number {
+  let version = 1;
+  for (const [v, at] of Object.entries(SEED_LIVE_AT)) {
+    if (Date.parse(createdAt) >= Date.parse(at)) version = Math.max(version, Number(v));
+  }
+  return version;
+}
+
+async function sandboxSeedVersion(sandboxId: string): Promise<number | null> {
+  const row = check(
+    await db().from('sandboxes').select('created_at').eq('id', sandboxId).maybeSingle(),
+    'get sandbox',
+  ) as { created_at: string } | null;
+  return row ? seedVersionOf(row.created_at) : null;
+}
+
 // A screening still running after this long has failed (functions stop after 60 seconds).
 const SCREENING_TIMEOUT_MS = 90_000;
 
@@ -120,13 +146,14 @@ export function conversationOf(items: AgentInputItem[]): ConversationMessage[] {
 
 export async function getState(sandboxId: string) {
   const store = new SupabaseStore(sandboxId);
-  const [applicants, bookings, audit, paused, screeningRows, items] = await Promise.all([
+  const [applicants, bookings, audit, paused, screeningRows, items, seedVersion] = await Promise.all([
     store.listApplicants(),
     store.listBookings(),
     store.listAudit(AUDIT_ENTRIES),
     openPausedRuns(sandboxId),
     store.listScreenings(),
     new PostgresSession(sandboxId).getItems(),
+    sandboxSeedVersion(sandboxId),
   ]);
   const names = new Map(applicants.map((a) => [a.id, a.name]));
   const nameOf = (id: string) => names.get(id) ?? id;
@@ -148,6 +175,8 @@ export async function getState(sandboxId: string) {
     audit: audit.map((e) => ({ ...e, text: describeAudit(e, nameOf) })),
     screenings,
     conversation: conversationOf(items),
+    seedVersion,
+    currentSeedVersion: SEED_VERSION,
   };
 }
 

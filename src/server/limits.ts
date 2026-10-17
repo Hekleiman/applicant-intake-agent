@@ -3,9 +3,10 @@ import { check, db } from './supabase.js';
 import { HttpError } from './http.js';
 
 // Checked before any model call, from usage_log. Every chat, approval and screening request is
-// logged.
+// logged. The per-IP limit is high enough that a rehearsal right before a demo (about 15 requests
+// per run of scripts/demo-path.mjs) can't use it up; Start over gives a fresh per-sandbox budget.
 export const LIMITS = {
-  perIpPerHour: 40,
+  perIpPerHour: 150,
   perSandboxTotal: 150,
   sitePer24Hours: 1500,
 };
@@ -54,7 +55,7 @@ export async function checkLimits(sandboxId: string, ip: string): Promise<void> 
     count('count site usage', () => usage().gte('at', dayAgo)),
   ]);
   if (perIp >= limits.perIpPerHour) {
-    throw new HttpError(429, 'You have sent a lot of messages in the last hour. Please wait a while and try again.');
+    throw new HttpError(429, 'This demo has had a lot of use from your network in the last hour. Please try again in a few minutes.');
   }
   if (perSandbox >= limits.perSandboxTotal) {
     throw new HttpError(429, 'This sandbox has reached its message limit. Use Start over to get a fresh one.');

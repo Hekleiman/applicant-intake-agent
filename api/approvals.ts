@@ -11,10 +11,12 @@ const Body = z.object({
 });
 
 export const POST = endpoint('approvals', async (request) => {
+  // The time of the click, taken before anything else runs; the decision's audit row carries it.
+  const decidedAt = new Date().toISOString();
   const { sandboxId, pausedRunId, decisions } = await readBody(request, Body);
   await requireSandbox(sandboxId);
   const ip = ipHash(request);
   await checkLimits(sandboxId, ip);
   const usageId = await startUsage(sandboxId, ip, 'approval');
-  return json(await resolveApproval(sandboxId, pausedRunId, decisions, usageId));
+  return json(await resolveApproval(sandboxId, pausedRunId, decisions, usageId, decidedAt));
 });
