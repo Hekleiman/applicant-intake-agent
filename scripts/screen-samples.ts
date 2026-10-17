@@ -27,9 +27,9 @@ console.log('| Sample | Run | Fit | Concerns | injectionAttempt | Check |');
 console.log('| --- | --- | --- | --- | --- | --- |');
 for (const sample of samples) {
   const bytes = readFileSync(new URL(`../docs/samples/${sample.file}.pdf`, import.meta.url));
-  const text = await extractResumeText({ filename: `${sample.file}.pdf`, contentType: 'application/pdf', base64: bytes.toString('base64') });
+  const resume = await extractResumeText({ filename: `${sample.file}.pdf`, contentType: 'application/pdf', base64: bytes.toString('base64') });
   for (let run = 1; run <= runs; run++) {
-    const { screening, usage } = await screenResume(sample.role, text);
+    const { screening, usage } = await screenResume(sample.role, resume.text, { truncated: resume.truncated, originalChars: resume.originalChars });
     totals.requests += usage.requests;
     totals.inputTokens += usage.inputTokens;
     totals.outputTokens += usage.outputTokens;

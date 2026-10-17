@@ -25,8 +25,13 @@ export const ScreeningSchema = z.object({
 
 export type Screening = z.infer<typeof ScreeningSchema>;
 
-// What is stored in applicants.screening: the model's output plus which requirements were used.
-export type StoredScreening = Screening & { role: string; generalCriteria: boolean };
+// What extraction did to the resume before the Screener saw it, recorded by our server.
+// originalChars is null when it isn't known (a retry only has the stored, already cut text).
+export type ResumeSource = { truncated: boolean; originalChars: number | null };
+
+// What is stored in applicants.screening: the model's output plus which requirements were used and
+// whether the resume was cut. Screenings saved before the cut was recorded have no truncated field.
+export type StoredScreening = Screening & { role: string; generalCriteria: boolean } & Partial<ResumeSource>;
 
 // No tools and no handoffs: whatever a resume says, this agent can only return data.
 export const screenerAgent = new Agent({
@@ -70,13 +75,16 @@ export function screeningPrompt(role: string, resumeText: string): { prompt: str
 export async function screenResume(
   role: string,
   resumeText: string,
+  source: ResumeSource,
 ): Promise<{ screening: StoredScreening; usage: Usage; responseIds: string[] }> {
   const { prompt, role: matchedRole, general } = screeningPrompt(role, resumeText);
   const result = await runner.run(screenerAgent, prompt, { maxTurns: 1 });
   const output = result.finalOutput;
   if (!output) throw new Error('the screener returned no result');
   return {
-    screening: { ...output, role: matchedRole, generalCriteria: general },
+    // The truncation fields come from our server and are set after the model output, so the
+    // model can't supply or change them.
+    screening: { ...output, role: matchedRole, generalCriteria: general, truncated: source.truncated, originalChars: source.originalChars },
     usage: fromSdkUsage(result.state.usage),
     responseIds: result.rawResponses.map((r) => r.responseId).filter((id): id is string => !!id),
   };

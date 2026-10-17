@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { SupabaseStore } from '../src/data/supabaseStore.js';
 import { endpoint, HttpError, json, readBody } from '../src/server/http.js';
 import { checkLimits, ipHash, startUsage } from '../src/server/limits.js';
+import { MAX_RESUME_CHARS } from '../src/server/resume.js';
 import { getState, requireSandbox } from '../src/server/sandbox.js';
 import { runScreening } from '../src/server/screening.js';
 
@@ -26,7 +27,10 @@ export const POST = endpoint('screen', async (request) => {
   await checkLimits(sandboxId, ip);
   const usageId = await startUsage(sandboxId, ip, 'screening');
   await store.clearScreening(applicantId);
-  const screening = await runScreening(sandboxId, applicant.id, applicant.role, resumeText, usageId);
+  // Only the stored text is left, already cut, so a full 20,000 characters means it was cut (or
+  // was exactly that long) and the original length is unknown.
+  const source = { truncated: resumeText.length >= MAX_RESUME_CHARS, originalChars: null };
+  const screening = await runScreening(sandboxId, applicant.id, applicant.role, resumeText, source, usageId);
   return json({
     screening: { ok: screening.ok },
     usage: screening.usage,

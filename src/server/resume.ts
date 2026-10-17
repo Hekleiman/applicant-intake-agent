@@ -38,10 +38,15 @@ export function normalizeText(text: string): string {
     .trim();
 }
 
+// What extraction kept. truncated is true when the text was longer than 20,000 characters and
+// only its start was kept; originalChars is the length before the cut. Both are measured here, on
+// our server, never by a model.
+export type ExtractedResume = { text: string; truncated: boolean; originalChars: number };
+
 // Extracts the text of a PDF or .txt resume on our server. Only the text is kept: the file is
 // never stored and never sent to a model. Refuses with a plain message what it can't use, and
 // keeps at most the first 20,000 characters.
-export async function extractResumeText(upload: ResumeUpload): Promise<string> {
+export async function extractResumeText(upload: ResumeUpload): Promise<ExtractedResume> {
   const kind = kindOf(upload);
   if (!kind) throw new HttpError(400, 'The resume must be a PDF or a .txt file.');
   if (!/^[A-Za-z0-9+/]+={0,2}$/.test(upload.base64)) throw new HttpError(400, 'The resume file could not be read.');
@@ -72,6 +77,7 @@ export async function extractResumeText(upload: ResumeUpload): Promise<string> {
         : 'The resume file is empty.',
     );
   }
-  // Capped, not refused: a long resume is screened on its first 20,000 characters.
-  return text.slice(0, MAX_RESUME_CHARS);
+  // Capped, not refused: a long resume is screened on its first 20,000 characters, and the
+  // screening records that it was cut.
+  return { text: text.slice(0, MAX_RESUME_CHARS), truncated: text.length > MAX_RESUME_CHARS, originalChars: text.length };
 }

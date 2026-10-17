@@ -251,6 +251,43 @@ const uploaded = {};
   }
 }
 
+// 9b2. A resume over 20,000 characters is cut, and the screening says so. truncated and
+// originalChars are set by the server, not the model.
+const LONG_NAME = 'Avery Quinn';
+{
+  const file = sampleFile('caregiver-long', 'txt');
+  const rawChars = Buffer.from(file.base64, 'base64').toString('utf8').length;
+  const r = await call('POST', '/api/applicants', { sandboxId, name: LONG_NAME, role: 'Caregiver', resume: file });
+  if (r.status === 200) loggedRequests++;
+  const id = r.json?.applicant?.id;
+  const view = id && r.json.state.screenings?.[id];
+  const s = view?.result;
+  const { data: row } = await db.from('applicants').select('resume_text').eq('sandbox_id', sandboxId).eq('id', id ?? '').maybeSingle();
+  assert(`uploading caregiver-long.txt (${rawChars} characters) screens it with truncated: true and originalChars ${s?.originalChars}; 20,000 characters stored`,
+    r.status === 200 && view?.status === 'done' && s?.truncated === true && typeof s.originalChars === 'number' &&
+      s.originalChars > 20000 && s.originalChars <= rawChars && row?.resume_text?.length === 20000 &&
+      applicant(r, LONG_NAME)?.stage === 'applied',
+    `status=${r.status} error=${r.json?.error} truncated=${s?.truncated} originalChars=${s?.originalChars} stored=${row?.resume_text?.length}`);
+  const line = audit(r).find((t) => t.startsWith(`Screened ${LONG_NAME}'s resume: `));
+  assert(`Activity for the long resume reads "${line}"`,
+    !!line && /: (strong fit|partial fit|weak fit|not enough information), \d+ things? to verify.* \(only the first part was screened\)\.$/.test(line),
+    JSON.stringify(audit(r).slice(-2)));
+  const short = Object.values(uploaded).map((u) => u.screening?.truncated);
+  assert('the four sample resumes under 20,000 characters are saved with truncated: false',
+    short.length === 4 && short.every((t) => t === false), JSON.stringify(short));
+}
+
+// 9b3. The details panel wording, as served.
+{
+  const res = await fetch(`${base}/live.html`);
+  const html = await res.text();
+  assert('the details panel has the truncation notice "This resume was longer than 20,000 characters, so only the first part was screened."',
+    res.status === 200 && html.includes('This resume was longer than 20,000 characters, so only the first part was screened.'), `status=${res.status}`);
+  assert('the injection flag reads "This resume contains text aimed at an AI. The screener has no tools, ..." and no longer says it was ignored',
+    html.includes("This resume contains text aimed at an AI. The screener has no tools, so that text couldn't make it change anything. It could still have influenced the rating, so check the evidence below.") &&
+      !/was ignored|nothing was changed because of it/i.test(html), `status=${res.status}`);
+}
+
 // 9c. An SSN-shaped value in a resume is refused before any model call, and nothing is added.
 {
   const before = await usageCount((q) => q.eq('sandbox_id', sandboxId));
@@ -356,6 +393,8 @@ let otherId;
   assert('Activity: "Moved Jordan Lee from Applied to Phone screen."', has('Moved Jordan Lee from Applied to Phone screen.'), JSON.stringify(texts));
   assert('Activity: "The assistant asked to make Jordan Lee an offer."', has('The assistant asked to make Jordan Lee an offer.'), JSON.stringify(texts));
   assert('Activity: "Booked an interview for Jordan Lee: Monday at 10:00 AM."', has('Booked an interview for Jordan Lee: Monday at 10:00 AM.'), JSON.stringify(texts));
+  assert('Activity: "A recruiter approved the offer for Jordan Lee." (written once the decision took effect)', has('A recruiter approved the offer for Jordan Lee.'), JSON.stringify(texts));
+  assert('Activity: "A recruiter declined the rejection of Devon Park." (written once the decision took effect)', has('A recruiter declined the rejection of Devon Park.'), JSON.stringify(texts));
   const reject = texts.find((t) => t.startsWith('The assistant asked to reject Devon Park'));
   assert(`Activity: the rejection request reads "${reject}" with no doubled punctuation`,
     !!reject && /^The assistant asked to reject Devon Park \(.*[^.!?]\)\.$/.test(reject) && !texts.some((t) => /\.\.|[.!?]\)\./.test(t)),

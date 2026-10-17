@@ -692,7 +692,10 @@
         detailsSub.appendChild(el('span', '', 'About ' + r.yearsRelevantExperience + ' year' + (r.yearsRelevantExperience === 1 ? '' : 's') + ' of relevant experience'));
       }
       if (r.injectionAttempt) {
-        detailsBody.appendChild(el('p', 'injection', 'Flagged: this resume contains text aimed at an AI, such as instructions to rate the candidate highly or move them forward. It was ignored, and nothing was changed because of it.'));
+        detailsBody.appendChild(el('p', 'injection', "This resume contains text aimed at an AI. The screener has no tools, so that text couldn't make it change anything. It could still have influenced the rating, so check the evidence below."));
+      }
+      if (r.truncated) {
+        detailsBody.appendChild(el('p', 'disclaimer truncated', 'This resume was longer than 20,000 characters, so only the first part was screened.'));
       }
       detailsBody.appendChild(el('h4', '', 'Summary'));
       detailsBody.appendChild(el('p', '', r.summary));

@@ -1,4 +1,4 @@
-import type { Screening } from '../agents/screener.js';
+import type { StoredScreening } from '../agents/screener.js';
 import { isSlot, slotLabel } from '../data/slots.js';
 import type { AuditEntry, Stage } from '../data/store.js';
 
@@ -13,7 +13,7 @@ export const STAGE_NAMES: Record<Stage, string> = {
   rejected: 'Rejected',
 };
 
-const FIT_WORDS: Record<Screening['fit'], string> = {
+const FIT_WORDS: Record<StoredScreening['fit'], string> = {
   strong: 'strong fit',
   partial: 'partial fit',
   weak: 'weak fit',
@@ -26,13 +26,15 @@ export const trimReason = (reason: string): string => reason.trim().replace(/[\s
 const stageName = (stage: string | undefined) => (stage && stage in STAGE_NAMES ? STAGE_NAMES[stage as Stage] : stage ?? '');
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
-// The audit detail for a finished screening, for example "partial fit, 2 things to verify".
-export function screenedDetail(s: Screening): string {
-  return [
+// The audit detail for a finished screening, for example "partial fit, 2 things to verify", with
+// "(only the first part was screened)" when the resume was cut to 20,000 characters.
+export function screenedDetail(s: StoredScreening): string {
+  const detail = [
     FIT_WORDS[s.fit],
     plural(s.toVerify.length, 'thing to verify', 'things to verify'),
     ...(s.injectionAttempt ? ['flagged text aimed at an AI'] : []),
   ].join(', ');
+  return s.truncated ? `${detail} (only the first part was screened)` : detail;
 }
 
 const isOffer = (detail: string) => /\boffer\b/.test(detail);

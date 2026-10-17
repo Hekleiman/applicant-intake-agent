@@ -281,14 +281,19 @@ export async function resolveApproval(
     action: i.action,
     approve: byCall.get(i.callId) === true,
   }));
-  // Decision audit rows by call ID. Written before the run, so they come before what the tool
-  // logs; removed again for any decision that never took effect.
-  const auditIds = new Map<string, number>();
-  const unaudit = async (callIds: string[]) => {
-    const ids = callIds.map((id) => auditIds.get(id)).filter((id): id is number => id !== undefined);
-    if (ids.length === 0) return;
-    const result = await db().from('audit_log').delete().in('id', ids);
-    if (result.error) console.error(`[api] removing audit rows failed: ${result.error.message}`);
+  // The audit log is append-only. A decision's "approved" or "declined" row is written only once
+  // that decision has taken effect: after the resumed run completes, or when the recovery check
+  // finds its result in the session. A decision that never took effect gets no row.
+  const auditDecisions = async (callIds: Set<string>) => {
+    const rows = decided
+      .filter((d) => callIds.has(d.callId))
+      .map((d) => ({
+        sandbox_id: sandboxId,
+        applicant_id: d.applicantId,
+        action: d.approve ? 'approved' : 'declined',
+        detail: `${d.action} ${d.approve ? 'approved' : 'declined'} by a human`,
+      }));
+    if (rows.length > 0) check(await db().from('audit_log').insert(rows), 'add audit entries');
   };
 
   let out: { reply: string; agent: string | null; pending: PendingApproval | null };
@@ -309,28 +314,13 @@ export async function resolveApproval(
       else state.reject(item, { message: declineMessage(approvalAction(item.name, parseArgs(item.arguments))) });
       req.collector.emit('approval_decision', { decision: approve ? 'approved' : 'declined', tool: item.name });
     }
-    for (const d of decided) {
-      const inserted = check(
-        await db()
-          .from('audit_log')
-          .insert({
-            sandbox_id: sandboxId,
-            applicant_id: d.applicantId,
-            action: d.approve ? 'approved' : 'declined',
-            detail: `${d.action} ${d.approve ? 'approved' : 'declined'} by a human`,
-          })
-          .select('id')
-          .single(),
-        'add audit entry',
-      ) as { id: number };
-      auditIds.set(d.callId, inserted.id);
-    }
     if (testFailMode() === 'before_decision') throw new Error('LIVE_TEST_FAIL_RESUME: simulated failure before the run');
     result = await req.runner.run(startingAgent, state, {
       session: req.session,
       maxTurns: MAX_TURNS,
       ...testFailureHook(),
     });
+    await auditDecisions(new Set(expected));
   } catch (error) {
     // A resume can fail after a decision took effect: the approved tool already ran (or the
     // decline was recorded) and its result is in the session, but the model's reply never came.
@@ -339,11 +329,16 @@ export async function resolveApproval(
     // So once any decision has a result in the session, it is final: the row is resolved, calls
     // without a result get a "not carried out" one so the next chat run is valid, and the
     // visitor is told what happened. Only when nothing took effect does the row go back to
-    // pending for a clean retry, with its decision audit rows removed.
+    // pending for a clean retry; that attempt is logged here and never written to the audit log.
     try {
       const done = await callsWithResult(req, expected);
-      await unaudit(expected.filter((id) => !done.has(id)));
       if (done.size === 0) {
+        console.error('[api] approval failed before any decision took effect; back to pending:', {
+          sandboxId,
+          pausedRunId: row.id,
+          decisions: decided.map((d) => `${d.action} ${d.approve ? 'approved' : 'declined'}`),
+          error: error instanceof Error ? error.message : String(error),
+        });
         await release();
       } else {
         const missing = row.interruptions.filter((i) => !done.has(i.callId));
@@ -357,6 +352,7 @@ export async function resolveApproval(
           })),
         );
         await markResolved();
+        await auditDecisions(done);
         console.error(`[api] approval ${row.id} failed after its decision took effect; resolved without a reply:`, error instanceof Error ? error.message : error);
         const said = await Promise.all(
           decided

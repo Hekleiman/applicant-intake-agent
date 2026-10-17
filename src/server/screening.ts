@@ -1,6 +1,6 @@
 import { waitUntil } from '@vercel/functions';
 import { getGlobalTraceProvider, withTrace } from '@openai/agents';
-import { screenResume } from '../agents/screener.js';
+import { screenResume, type ResumeSource } from '../agents/screener.js';
 import { SupabaseStore } from '../data/supabaseStore.js';
 import { emptyUsage } from '../lib/usage.js';
 import type { Usage } from '../lib/runEvents.js';
@@ -17,6 +17,7 @@ export async function runScreening(
   applicantId: string,
   role: string,
   resumeText: string,
+  source: ResumeSource,
   usageId: number,
 ): Promise<ScreeningOutcome> {
   const store = new SupabaseStore(sandboxId);
@@ -24,11 +25,11 @@ export async function runScreening(
   try {
     // Test only, ignored in production: makes every screening fail, to exercise the retry.
     if (!isProduction() && process.env.LIVE_TEST_FAIL_SCREENING === '1') throw new Error('LIVE_TEST_FAIL_SCREENING');
-    const outcome = await withTrace('Live resume screening', () => screenResume(role, resumeText), { groupId: sandboxId });
+    const outcome = await withTrace('Live resume screening', () => screenResume(role, resumeText, source), { groupId: sandboxId });
     usage = outcome.usage;
     await store.saveScreening(applicantId, outcome.screening);
     await store.addAudit(applicantId, 'screened', screenedDetail(outcome.screening));
-    console.log(`[screening] ${applicantId} -> ${outcome.screening.fit}, ${outcome.screening.concerns.length} concern(s), injectionAttempt=${outcome.screening.injectionAttempt}`);
+    console.log(`[screening] ${applicantId} -> ${outcome.screening.fit}, ${outcome.screening.concerns.length} concern(s), injectionAttempt=${outcome.screening.injectionAttempt}, truncated=${source.truncated}`);
     return { ok: true, usage, responseIds: outcome.responseIds };
   } catch (error) {
     console.error(`[screening] ${applicantId} failed:`, error instanceof Error ? error.message : error);
